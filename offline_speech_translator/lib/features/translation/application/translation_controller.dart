@@ -16,6 +16,9 @@ class TranslationController extends ChangeNotifier {
   bool translating = false;
   bool playing = false;
   bool recording = false;
+  bool restoredDraft = false;
+  final Map<TranslationLanguage, _Draft> _drafts = {};
+  _Draft? _beforeRecording;
   final List<ConversationEntry> _history = [];
   List<ConversationEntry> get history => List.unmodifiable(_history);
   int? playingEntryId;
@@ -23,6 +26,15 @@ class TranslationController extends ChangeNotifier {
   int _playbackGeneration = 0;
   bool _disposed = false;
   Future<void> _settling = Future.value();
+
+  _Draft get _draft => _Draft(transcript, translated, error);
+
+  void _restore(_Draft? draft) {
+    transcript = draft?.transcript ?? '';
+    translated = draft?.translated ?? '';
+    error = draft?.error;
+    restoredDraft = transcript.isNotEmpty;
+  }
 
   void _invalidate() {
     ++_generation;
@@ -33,6 +45,7 @@ class TranslationController extends ChangeNotifier {
     translating = false;
     playing = false;
     playingEntryId = null;
+    restoredDraft = false;
     _settling = Future.wait([translator.cancel(), voice.stop()]).then((_) {});
     // Keep asynchronous cancellation failures observed even when no new operation
     // is started. A new recording still awaits the original failing future.
@@ -40,14 +53,21 @@ class TranslationController extends ChangeNotifier {
   }
 
   void selectSource(TranslationLanguage value) {
-    if (recording || value == source) return;
+    if (_disposed || recording || value == source) return;
+    _drafts[source] = _draft;
     _invalidate();
     source = value;
-    transcript = ''; // Never reinterpret a transcript in the other language.
+    // Each language owns its text. Switching never reinterprets the old input
+    // or automatically restarts cancelled translation work.
+    _restore(_drafts[value]);
     notifyListeners();
   }
 
   Future<int> beginRecording() async {
+    if (_disposed || recording) {
+      throw StateError('Recording is already active.');
+    }
+    _beforeRecording = _draft;
     _invalidate();
     transcript = '';
     recording = true;
@@ -58,6 +78,8 @@ class TranslationController extends ChangeNotifier {
     } catch (_) {
       if (_current(generation)) {
         recording = false;
+        _restore(_beforeRecording);
+        _beforeRecording = null;
         notifyListeners();
       }
       rethrow;
@@ -66,44 +88,96 @@ class TranslationController extends ChangeNotifier {
   }
 
   void cancelRecording() {
+    if (_disposed || !recording) return;
     _invalidate();
     recording = false;
-    transcript = '';
+    _restore(_beforeRecording);
+    _beforeRecording = null;
     notifyListeners();
   }
 
-  Future<void> acceptFinal(int generation, String text) async {
+  Future<void> acceptFinal(
+    int generation,
+    String text, {
+    bool translateAutomatically = true,
+    bool separateLines = false,
+  }) async {
     if (!_current(generation) || !recording) return;
     recording = false;
     transcript = text.trim();
+    if (transcript.isEmpty) _restore(_beforeRecording);
+    _beforeRecording = null;
     notifyListeners();
-    if (transcript.isNotEmpty) await translate();
+    if (text.trim().isNotEmpty && translateAutomatically) {
+      await translate(separateLines: separateLines);
+    }
+  }
+
+  /// Explicitly clears only the selected direction; completed history survives.
+  void clear() {
+    if (_disposed || recording) return;
+    _invalidate();
+    transcript = '';
+    _drafts.remove(source);
+    notifyListeners();
   }
 
   void edit(String text) {
-    if (recording) return;
+    if (_disposed || recording || text.trim() == transcript) return;
     _invalidate();
     transcript = text.trim();
     notifyListeners();
   }
 
-  Future<void> translate() async {
+  Future<void> translate({bool separateLines = false}) async {
     if (_disposed || recording || translating || transcript.isEmpty) return;
     final generation = ++_generation;
     final input = transcript;
     final from = source;
     final to = target;
+    ++_playbackGeneration;
     translated = '';
     error = null;
     voiceNotice = null;
     translating = true;
     playing = false;
+    playingEntryId = null;
+    restoredDraft = false;
     notifyListeners();
     try {
       await voice.stop();
       await _settling;
       if (!_current(generation)) return;
-      final result = await translator.translate(input, from, to);
+      final String result;
+      if (separateLines) {
+        if (input.length > 8000) {
+          throw ArgumentError(
+            'Enter a shorter passage (at most 8000 characters). No text was truncated.',
+          );
+        }
+        final lines = input.split(RegExp(r'\r\n|[\n\r]'));
+        final outputs = <String>[];
+        for (final line in lines) {
+          if (!_current(generation)) return;
+          if (line.trim().isEmpty) {
+            outputs.add('');
+            continue;
+          }
+          final output = await translator.translate(line.trim(), from, to);
+          if (!_current(generation)) return;
+          if (output.trim().isEmpty) {
+            throw StateError(
+              'A line could not be translated. Edit the source and retry.',
+            );
+          }
+          outputs.add(output.trim());
+        }
+        // Commit only after every line succeeds. A cancelled or failed batch
+        // never publishes an incomplete translation or history entry.
+        result = outputs.join('\n');
+      } else {
+        result = await translator.translate(input, from, to);
+      }
       if (!_current(generation)) return;
       if (result.trim().isEmpty) {
         throw StateError('No translation was generated.');
@@ -142,6 +216,9 @@ class TranslationController extends ChangeNotifier {
     voiceNotice = null;
     notifyListeners();
     try {
+      // A previous direction may still be releasing native playback resources.
+      await _settling;
+      if (!_current(generation) || playback != _playbackGeneration) return;
       final supported = await voice.supports(language);
       if (!_current(generation) || playback != _playbackGeneration) return;
       if (!supported) {
@@ -186,4 +263,11 @@ class TranslationController extends ChangeNotifier {
     _invalidate();
     super.dispose();
   }
+}
+
+class _Draft {
+  const _Draft(this.transcript, this.translated, this.error);
+  final String transcript;
+  final String translated;
+  final String? error;
 }

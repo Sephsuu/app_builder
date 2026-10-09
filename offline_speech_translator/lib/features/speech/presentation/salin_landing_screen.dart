@@ -21,7 +21,7 @@ class SalinLandingScreen extends StatelessWidget {
             final textScale = MediaQuery.textScalerOf(context).scale(16) / 16;
             final height = math.max(
               constraints.maxHeight,
-              700.0 + (textScale - 1).clamp(0, 3) * 140,
+              620.0 + (textScale - 1).clamp(0, 3) * 140,
             );
             final artworkHeight = math.min(height * .27, width * .64);
             return SingleChildScrollView(
@@ -53,15 +53,6 @@ class SalinLandingScreen extends StatelessWidget {
                               ),
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 32),
-                        child: Text(
-                          'Offline voice translation for\nTagalog and Bisaya conversations.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 14, height: 1.5),
-                        ),
-                      ),
                       const Spacer(flex: 3),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -69,7 +60,7 @@ class SalinLandingScreen extends StatelessWidget {
                           width: double.infinity,
                           child: FilledButton(
                             onPressed: onStart,
-                            child: const Text('Get started'),
+                            child: const Text('Start'),
                           ),
                         ),
                       ),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import 'features/onboarding/presentation/onboarding_gate.dart';
-import 'features/onboarding/data/onboarding_store.dart';
+import 'features/speech/presentation/salin_landing_screen.dart';
+import 'features/speech/presentation/speech_home_screen.dart';
 import 'theme/salin_theme.dart';
 
 void main() {
@@ -11,8 +11,7 @@ void main() {
 
 // Retain the app class used by existing integrations; Salin is the UI brand.
 class SultiApp extends StatelessWidget {
-  const SultiApp({super.key, this.onboardingStore, this.translatorBuilder});
-  final OnboardingStore? onboardingStore;
+  const SultiApp({super.key, this.translatorBuilder});
   final WidgetBuilder? translatorBuilder;
 
   @override
@@ -21,9 +20,15 @@ class SultiApp extends StatelessWidget {
       title: 'Salin',
       debugShowCheckedModeBanner: false,
       theme: SalinTheme.light,
-      home: OnboardingGate(
-        store: onboardingStore,
-        translatorBuilder: translatorBuilder,
+      home: Builder(
+        builder: (context) => SalinLandingScreen(
+          onStart: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (context) =>
+                  translatorBuilder?.call(context) ?? const SpeechHomeScreen(),
+            ),
+          ),
+        ),
       ),
     );
   }

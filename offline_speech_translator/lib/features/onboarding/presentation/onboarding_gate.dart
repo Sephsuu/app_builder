@@ -50,7 +50,26 @@ class _OnboardingGateState extends State<OnboardingGate> {
       body: SafeArea(
         child: Center(
           child: _error == null
-              ? const CircularProgressIndicator(semanticsLabel: 'Opening Salin')
+              ? const Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Salin',
+                      style: TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    SizedBox(height: 20),
+                    SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        semanticsLabel: 'Opening Salin',
+                      ),
+                    ),
+                  ],
+                )
               : Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [

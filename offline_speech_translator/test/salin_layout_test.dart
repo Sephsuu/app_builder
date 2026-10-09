@@ -81,8 +81,8 @@ void main() {
         await tester.pumpWidget(app(SalinLandingScreen(onStart: () {})));
         await tester.pumpAndSettle();
         await screenshot('landing');
-        await reveal(tester, find.text('Get started'));
-        expect(find.text('Get started').hitTestable(), findsOneWidget);
+        await reveal(tester, find.text('Start'));
+        expect(find.text('Start').hitTestable(), findsOneWidget);
 
         final translator = FakeTranslator();
         final voice = FakeVoice();

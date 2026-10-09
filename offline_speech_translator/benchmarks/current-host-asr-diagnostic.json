@@ -1,0 +1,137 @@
+{
+  "scope": "Fresh host whisper.cpp CLI CPU diagnostic; not Android capture, app regression parity, denoising comparison or representative quality acceptance. Publisher reference transcripts, not independently reviewed. Host accelerators differ from Android.",
+  "rows": [
+    {
+      "id": "1869",
+      "speaker": "unspecified by local fixture manifest",
+      "style": "clean Tagalog",
+      "reference": "ang mahahaba nitong mga panga ay may 70 na mga matutulis na ngipin kasama na ang ekstrang hanay sa itaas ng bunganga nito nangangahulugan na walang matatakasan ang sinuman na makasalubong nito",
+      "sha": "818710568da3ca15689e31a743197b520007872ff9576237bda97bd1b469c3d7",
+      "raw": "Kamaha ba ni tummang ng pangah. Aymay pito ng po nama ng Matutulis ng nangipin. Kasama na ang esksprang, hana isa ita-as nambong ang anito. Nangang ngulugan na walang matata-tagasan ang sinoman na makasalubungit.",
+      "corrected": "Kamaha ba ni tummang ng pangah. Aymay pito ng po nama ng Matutulis ng nangipin. Kasama na ang esksprang, hana isa ita-as nambong ang anito. Nangang ngulugan na walang matata-tagasan ang sinoman na makasalubungit.",
+      "wall_seconds": 0.705590375000611,
+      "arguments": [
+        "/tmp/sulti-whisper-host/bin/whisper-cli",
+        "-m",
+        "/tmp/sulti-native-benchmark/model.bin",
+        "-f",
+        "evaluation/private/10016150700374001635.wav",
+        "-l",
+        "tl",
+        "-t",
+        "4",
+        "-bo",
+        "1",
+        "-bs",
+        "1",
+        "-ng",
+        "-nt",
+        "-oj",
+        "-of",
+        "evaluation/private/host-check-1869"
+      ],
+      "system": "WHISPER : COREML = 0 | OPENVINO = 0 | CPU : NEON = 1 | ARM_FMA = 1 | FP16_VA = 1 | MATMUL_INT8 = 1 | DOTPROD = 1 | SME = 1 | ACCELERATE = 1 | REPACK = 1 | "
+    },
+    {
+      "id": "1930",
+      "speaker": "unspecified by local fixture manifest",
+      "style": "clean Tagalog",
+      "reference": "anim na bihag kabilang ang mga bata at matatanda ang maagang pinakawalan gayon din ang mga pilipinong potograpo",
+      "sha": "818710568da3ca15689e31a743197b520007872ff9576237bda97bd1b469c3d7",
+      "raw": "Anim labihag kabilang ang mga batah at matakanda. Ang maagang pinakawalan, kayun tin ang mga pilipinong potograbo.",
+      "corrected": "Anim labihag kabilang ang mga batah at matakanda. Ang maagang pinakawalan, kayun tin ang mga pilipinong potograbo.",
+      "wall_seconds": 0.5855444160115439,
+      "arguments": [
+        "/tmp/sulti-whisper-host/bin/whisper-cli",
+        "-m",
+        "/tmp/sulti-native-benchmark/model.bin",
+        "-f",
+        "evaluation/private/10030073068120699612.wav",
+        "-l",
+        "tl",
+        "-t",
+        "4",
+        "-bo",
+        "1",
+        "-bs",
+        "1",
+        "-ng",
+        "-nt",
+        "-oj",
+        "-of",
+        "evaluation/private/host-check-1930"
+      ],
+      "system": "WHISPER : COREML = 0 | OPENVINO = 0 | CPU : NEON = 1 | ARM_FMA = 1 | FP16_VA = 1 | MATMUL_INT8 = 1 | DOTPROD = 1 | SME = 1 | ACCELERATE = 1 | REPACK = 1 | "
+    },
+    {
+      "id": "cebuano-12",
+      "speaker": "CEB_012",
+      "style": "clean Cebuano",
+      "reference": "Unsa imong paboritong nga app? Ang ako gyung paborito nga app no kay Twitter, Discord o kaning Facebook. Di man jud namawala ang Facebook pero usahay toxic lang ka-- toxic lang",
+      "sha": "43b3973c2baaff647a92619102c24e3dd0ed1f0e00993b7e3ecd68231dfc587f",
+      "raw": "Unsa imong paborito nga app? Ang ako ang mga paborito nga app kay Twitter, Discord, or Kaning Facebook, hindi man natu na mawala ang Facebook pero usahay tungod tungod pag-togsik lang.",
+      "corrected": "Unsa imong paborito nga app? Ang ako ang mga paborito nga app kay Twitter, Discord, or Kaning Facebook, hindi man natu na mawala ang Facebook pero usahay tungod tungod pag-togsik lang.",
+      "wall_seconds": 6.428486791002797,
+      "arguments": [
+        "/tmp/sulti-whisper-host/bin/whisper-cli",
+        "-m",
+        "evaluation/private/cebuano-asr/ggml-cebuano-small-q5_1.bin",
+        "-f",
+        "evaluation/private/cebuano-evaluation/cebuano-12.wav",
+        "-l",
+        "tl",
+        "-t",
+        "4",
+        "-bo",
+        "1",
+        "-bs",
+        "5",
+        "-ng",
+        "-nt",
+        "-oj",
+        "-of",
+        "evaluation/private/host-check-cebuano-12"
+      ],
+      "system": "WHISPER : COREML = 0 | OPENVINO = 0 | CPU : NEON = 1 | ARM_FMA = 1 | FP16_VA = 1 | MATMUL_INT8 = 1 | DOTPROD = 1 | SME = 1 | ACCELERATE = 1 | REPACK = 1 | "
+    }
+  ],
+  "by_language": {
+    "clean Tagalog": {
+      "recordings": 2,
+      "speakers": 1,
+      "styles": [
+        "clean Tagalog"
+      ],
+      "raw": {
+        "wer": 0.72,
+        "cer": 0.1843137254901961,
+        "exact_match": 0.0
+      },
+      "corrected": {
+        "wer": 0.72,
+        "cer": 0.1843137254901961,
+        "exact_match": 0.0
+      },
+      "corrections_worsening_word_distance": 0
+    },
+    "clean Cebuano": {
+      "recordings": 1,
+      "speakers": 1,
+      "styles": [
+        "clean Cebuano"
+      ],
+      "raw": {
+        "wer": 0.41935483870967744,
+        "cer": 0.2198581560283688,
+        "exact_match": 0.0
+      },
+      "corrected": {
+        "wer": 0.41935483870967744,
+        "cer": 0.2198581560283688,
+        "exact_match": 0.0
+      },
+      "corrections_worsening_word_distance": 0
+    }
+  },
+  "speaker_count_note": "Distinct Filipino speaker identities are not available in the local fixture manifest; speaker count is not an established participant count."
+}

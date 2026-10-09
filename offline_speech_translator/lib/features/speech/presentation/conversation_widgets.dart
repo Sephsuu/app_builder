@@ -23,7 +23,7 @@ class LanguageSelection extends StatelessWidget {
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4),
         child: IconButton(
-          tooltip: 'Swap languages and clear text',
+          tooltip: 'Swap languages',
           onPressed: enabled ? onSwap : null,
           icon: const Icon(Icons.swap_horiz_rounded),
         ),
@@ -61,6 +61,69 @@ class LanguageSelection extends StatelessWidget {
               if (language != null) onChanged(language);
             }
           : null,
+    );
+  }
+}
+
+/// Compact, noninteractive progress for either direction. A result is complete
+/// only once inference succeeds; typing or receiving a transcript is not enough.
+class ConversationSteps extends StatelessWidget {
+  const ConversationSteps({
+    super.key,
+    required this.hasSource,
+    required this.translating,
+    required this.hasTranslation,
+    required this.capturing,
+  });
+  final bool hasSource, translating, hasTranslation, capturing;
+
+  @override
+  Widget build(BuildContext context) {
+    final active = capturing || !hasSource
+        ? 0
+        : hasTranslation
+        ? 3
+        : translating
+        ? 2
+        : 1;
+    const labels = ['Speak / type', 'Review', 'Translate', 'Play / copy'];
+    return Wrap(
+      spacing: 12,
+      runSpacing: 8,
+      children: List.generate(labels.length, (index) {
+        final complete = index == 0
+            ? hasSource && !capturing
+            : index < 3 && hasTranslation;
+        return Semantics(
+          label:
+              'Step ${index + 1}: ${labels[index]}, ${complete
+                  ? 'complete'
+                  : active == index
+                  ? 'current'
+                  : 'pending'}',
+          excludeSemantics: true,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (complete)
+                const Icon(Icons.check_circle_outline, size: 14)
+              else
+                Text('${index + 1}', style: const TextStyle(fontSize: 12)),
+              const SizedBox(width: 4),
+              Text(
+                labels[index],
+                style: TextStyle(
+                  fontSize: 12,
+                  color: active == index ? SalinTheme.ink : SalinTheme.muted,
+                  fontWeight: active == index
+                      ? FontWeight.w700
+                      : FontWeight.w400,
+                ),
+              ),
+            ],
+          ),
+        );
+      }),
     );
   }
 }

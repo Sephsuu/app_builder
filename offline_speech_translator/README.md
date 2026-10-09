@@ -13,6 +13,9 @@ by default; no recognition improvement from it is claimed.
 
 See the [pre-change audit](evaluation/implementation-audit.md) and
 [verification and limitations](evaluation/implementation-results.md).
+The [bidirectional refinement report](evaluation/bidirectional-refinement.md)
+records the latest draft retention, review workflow, optional independent-line
+translation, actual model comparison, and checks on 10 October 2026.
 The [conversation UI report](evaluation/salin-conversation-implementation.md)
 documents onboarding, microphone levels, session history and Android checks.
 The earlier [Salin UI report](evaluation/salin-ui-implementation.md) includes rendered
@@ -25,26 +28,34 @@ flutter pub get
 flutter run -d <ANDROID_DEVICE_ID>
 ```
 
-1. On first launch, tap **Get started** and try the three-step, clearly labeled
-   example. Tap **Start Translating** to save completion locally. Later launches
-   open the conversation screen directly.
+1. The branded landing page appears on launch. Tap **Start** to open the
+   conversation translator. Tap the back arrow in its top bar to return to the
+   landing page.
 2. Open **Speech and offline settings** (the sliders icon). Install the speech
    model (~32 MB Tiny; ~63 MB Base) and translation model (~900 MB). Downloads
    remain explicit, resumable and checksum-verified. Installed Base is selected
    for final Tagalog recognition by default; Tiny remains available. For Cebuano
    voice, import the verified `ggml-cebuano-small-q5_1.bin` checkpoint.
 3. Choose **From** and **To**, or swap speakers. Tagalog and Bisaya are the
-   supported translation pair. Direction changes clear the current draft while
-   retaining completed conversation turns. Controls are disabled during capture
+   supported translation pair. Each direction retains its own draft and result;
+   returning to it labels an existing result **Saved translation**. Swapping never
+   retranslates old text automatically. Controls are disabled during capture
    and final recognition.
 4. Tap the microphone, speak, then tap **Stop**. The waveform uses actual captured
    PCM levels. Final speech is transcribed and translated on the same screen;
    provisional live captions never trigger translation. **Cancel** discards the
-   recording. Cebuano uses the trained Small model with live captions disabled.
+   recording and restores the prior draft. Enable **Review before translating**
+   in settings to check the final transcript before translating. Cebuano uses the
+   trained Small model with live captions disabled.
    English/auto recognition and experimental mixed speech remain in settings.
 5. Alternatively enter or edit source text and tap **Translate source text**.
    Original and translated text stay visible together. Failures preserve the
    source and expose retry. Copy, edit and offline playback remain available.
+   **Clear current turn** clears only this direction; completed history remains.
+   For separate messages on separate lines, optionally enable **Translate each
+   line separately** in settings. This preserves line boundaries and can reduce
+   omissions, but removes shared context and takes longer. All lines must succeed
+   before any new result is displayed. Full-passage translation remains the default.
 6. Tap **Play translation** to use an installed voice for the exact target
    language. Completed turns stay in scrollable history for the current session,
    with their own playback and copy controls. **Translate Again** immediately

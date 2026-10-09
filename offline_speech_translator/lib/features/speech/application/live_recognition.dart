@@ -51,7 +51,7 @@ class LiveRecognition {
               processingTime: _processingTime,
               firstTextTime: _firstTextTime,
               notice:
-                  'Live preview paused. Tap Finish to recognize the full recording.',
+                  'Live preview paused. Tap Stop to recognize the full recording.',
             ),
           );
         }
@@ -139,7 +139,7 @@ class LiveRecognition {
         processingTime: _processingTime,
         firstTextTime: _firstTextTime,
         notice: _paused
-            ? 'Preview is slow on this phone. Tap Finish for the full transcription.'
+            ? 'Preview is slow on this phone. Tap Stop for the full transcription.'
             : null,
       ),
     );

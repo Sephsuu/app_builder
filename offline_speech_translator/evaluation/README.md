@@ -1,5 +1,9 @@
 # Accuracy audit and evaluation gate
 
+Historical document: the ASR-only observations below describe an earlier checkout.
+For the current bidirectional translation, TTS, retained drafts and actual checks,
+see [bidirectional refinement](bidirectional-refinement.md) and the root README.
+
 This is the original pre-live-caption audit. Current behavior and the first
 public Filipino measurements are in [adaptive live captions](../benchmarks/adaptive-live-captions.md).
 

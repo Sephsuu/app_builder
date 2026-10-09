@@ -42,6 +42,10 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
   double? _translationProgress;
   String? _translationSetupError;
   bool _noiseSuppression = false;
+  bool _reviewBeforeTranslation = false;
+  bool _translateLinesSeparately = false;
+  final Map<TranslationLanguage, _SpeechDraft> _speechDrafts = {};
+  _SpeechDraft? _beforeRecording;
   int? _translationRecording;
   String? _audioNotice;
   bool get _tagalogSource => _translation.source == TranslationLanguage.tagalog;
@@ -151,6 +155,12 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
   }
 
   Future<void> _checkTranslation() async {
+    if (mounted) {
+      setState(() {
+        _checkingTranslation = true;
+        _translationSetupError = null;
+      });
+    }
     try {
       final installed = await _localTranslation?.isInstalled() ?? true;
       if (mounted) setState(() => _translationInstalled = installed);
@@ -199,22 +209,50 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
 
   void _selectDirection(TranslationLanguage source) {
     if (_busy || source == _translation.source) return;
+    _speechDrafts[_translation.source] = _speechDraft;
     _translation.selectSource(source);
     setState(() {
-      _inputLanguage = source.voiceCode;
-      _transcript = '';
-      _rawTranscript = '';
-      _audioNotice = null;
+      _restoreSpeechDraft(_speechDrafts[source]);
       _error = null;
-      _recognitionDuration = null;
-      _recordingDuration = Duration.zero;
+      _live = const LiveRecognitionSnapshot();
+    });
+  }
+
+  _SpeechDraft get _speechDraft => _SpeechDraft(
+    transcript: _transcript,
+    raw: _rawTranscript,
+    language: _inputLanguage,
+    model: _resultModelLabel,
+    audioNotice: _audioNotice,
+    recordingDuration: _recordingDuration,
+    recognitionDuration: _recognitionDuration,
+  );
+
+  void _restoreSpeechDraft(_SpeechDraft? draft) {
+    _inputLanguage = draft?.language ?? _translation.source.voiceCode;
+    _transcript = draft?.transcript ?? '';
+    _rawTranscript = draft?.raw ?? '';
+    _resultModelLabel = draft?.model ?? '';
+    _audioNotice = draft?.audioNotice;
+    _recognitionDuration = draft?.recognitionDuration;
+    _recordingDuration = draft?.recordingDuration ?? Duration.zero;
+  }
+
+  void _clearTurn() {
+    if (_busy) return;
+    _translation.clear();
+    _speechDrafts.remove(_translation.source);
+    setState(() {
+      _restoreSpeechDraft(null);
+      _error = null;
+      _live = const LiveRecognitionSnapshot();
     });
   }
 
   Future<void> _translate() async {
     if (_busy) return;
     _speech.releaseModel();
-    await _translation.translate();
+    await _translation.translate(separateLines: _translateLinesSeparately);
   }
 
   Future<void> _refreshModelStatus() async {
@@ -308,6 +346,7 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
 
   Future<void> _startRecording() async {
     if (!_canRecord || _busy) return;
+    _beforeRecording = _speechDraft;
     final requestId = ++_requestId;
     _live = const LiveRecognitionSnapshot();
     _audioEnvelope.reset();
@@ -355,6 +394,7 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
       if (!mounted || requestId != _requestId) return;
       _translation.cancelRecording();
       setState(() {
+        _restoreSpeechDraft(_beforeRecording);
         _loadingModel = false;
         _recording = false;
         _error = _friendlyError(error);
@@ -390,20 +430,33 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
         _finishing = false;
         _audioNotice = _speech.diagnostics.notice ?? _speech.noiseNotice;
       });
+      if (_transcript.isEmpty) {
+        _translation.cancelRecording();
+        setState(() => _restoreSpeechDraft(_beforeRecording));
+        return;
+      }
       if ((_inputLanguage == 'tl' || _inputLanguage == 'ceb') &&
           _translationRecording != null) {
         _speech.releaseModel();
         unawaited(
-          _translation.acceptFinal(_translationRecording!, _transcript),
+          _translation.acceptFinal(
+            _translationRecording!,
+            _transcript,
+            translateAutomatically:
+                !_reviewBeforeTranslation && _translationInstalled,
+            separateLines: _translateLinesSeparately,
+          ),
         );
       } else {
         _translation.cancelRecording();
+        _translation.clear();
       }
     } catch (error) {
       recognitionClock.stop();
       if (!mounted || requestId != _requestId) return;
       _translation.cancelRecording();
       setState(() {
+        _restoreSpeechDraft(_beforeRecording);
         _finishing = false;
         _recognitionDuration = recognitionClock.elapsed;
         _recognitionProgress = null;
@@ -430,13 +483,11 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
           _recording = false;
           _loadingModel = false;
           _finishing = false;
-          _transcript = '';
+          _restoreSpeechDraft(_beforeRecording);
           _error = cancellationError == null
               ? null
               : _friendlyError(cancellationError);
           _live = const LiveRecognitionSnapshot();
-          _recordingDuration = Duration.zero;
-          _recognitionDuration = null;
           _recognitionProgress = null;
         });
       }
@@ -579,6 +630,23 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
       child: Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,
+          leading: Navigator.of(context).canPop()
+              ? IconButton(
+                  tooltip: _showSettings
+                      ? 'Back to translator'
+                      : 'Back to landing page',
+                  onPressed: _navigationLocked
+                      ? null
+                      : () {
+                          if (_showSettings) {
+                            setState(() => _showSettings = false);
+                          } else {
+                            Navigator.of(context).pop();
+                          }
+                        },
+                  icon: const Icon(Icons.arrow_back_rounded),
+                )
+              : null,
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -631,7 +699,16 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
                                   onSwap: () =>
                                       _selectDirection(_translation.target),
                                 ),
-                                const SizedBox(height: 24),
+                                const SizedBox(height: 12),
+                                ConversationSteps(
+                                  hasSource: _transcript.isNotEmpty,
+                                  translating: _translation.translating,
+                                  hasTranslation:
+                                      _translation.translated.isNotEmpty,
+                                  capturing:
+                                      _recording || _loadingModel || _finishing,
+                                ),
+                                const SizedBox(height: 20),
                                 _buildMicrophone(),
                                 const SizedBox(height: 16),
                                 if (!_canRecord && !_checkingModel) ...[
@@ -680,6 +757,11 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
                                     actions: [
                                       if (_transcript.isNotEmpty) ...[
                                         IconButton(
+                                          tooltip: 'Clear current turn',
+                                          onPressed: _busy ? null : _clearTurn,
+                                          icon: const Icon(Icons.clear_rounded),
+                                        ),
+                                        IconButton(
                                           tooltip: 'Edit transcription',
                                           onPressed: _busy
                                               ? null
@@ -721,7 +803,7 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
                                 TranslationTextPanel(
                                   key: _translationResultKey,
                                   title:
-                                      'Translation · ${_translation.target.label}',
+                                      '${_translation.restoredDraft && _translation.translated.isNotEmpty ? 'Saved translation' : 'Translation'} · ${_translation.target.label}',
                                   text: _translation.translated,
                                   placeholder: _translation.translating
                                       ? 'Translating on this device…'
@@ -730,18 +812,25 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
                                   actions: [
                                     if (_translation.translated.isNotEmpty) ...[
                                       TextButton.icon(
-                                        onPressed: _translation.playing
+                                        onPressed:
+                                            _translation.playing &&
+                                                _translation.playingEntryId ==
+                                                    null
                                             ? _translation.stopPlayback
-                                            : (_busy
+                                            : (_busy || _translation.playing
                                                   ? null
                                                   : () => _translation.play()),
                                         icon: Icon(
-                                          _translation.playing
+                                          _translation.playing &&
+                                                  _translation.playingEntryId ==
+                                                      null
                                               ? Icons.stop_rounded
                                               : Icons.volume_up_outlined,
                                         ),
                                         label: Text(
-                                          _translation.playing
+                                          _translation.playing &&
+                                                  _translation.playingEntryId ==
+                                                      null
                                               ? 'Stop playback'
                                               : 'Play translation',
                                         ),
@@ -757,8 +846,14 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
                                   ],
                                 ),
                                 const SizedBox(height: 12),
-                                if (_translation.translating)
-                                  const LinearProgressIndicator(),
+                                if (_translation.restoredDraft)
+                                  const Text(
+                                    'Saved for this direction. Translate again to request a new result.',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: SalinTheme.muted,
+                                    ),
+                                  ),
                                 if (_translation.error != null)
                                   Padding(
                                     padding: const EdgeInsets.symmetric(
@@ -914,7 +1009,7 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
         : _loadingModel
         ? 'Preparing the microphone…'
         : _recording
-        ? 'Listening · ${_formatDuration(_recordingDuration)}'
+        ? 'Listening · ${_translation.source.label} · ${_formatDuration(_recordingDuration)}'
         : _finishing
         ? 'Transcribing on this device…'
         : _translation.translating
@@ -926,7 +1021,11 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
         : _translation.error != null || _error != null
         ? 'Something went wrong. Try again below.'
         : _translation.translated.isNotEmpty
-        ? 'Translation ready. Your turn to speak.'
+        ? (_translation.restoredDraft
+              ? 'Saved translation ready to use.'
+              : 'Translation ready. Your turn to speak.')
+        : _transcript.isNotEmpty
+        ? 'Review your source text, then translate.'
         : 'Tap to speak';
     return Column(
       children: [
@@ -942,7 +1041,13 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
                 size: 14,
               ),
               const SizedBox(width: 8),
-              Text(status, style: const TextStyle(fontWeight: FontWeight.w600)),
+              Flexible(
+                child: Text(
+                  status,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
             ],
           ),
         ] else ...[
@@ -1013,7 +1118,21 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
         ] else
           const Text('Offline translation model installed.'),
         if (_translationSetupError != null)
-          Text(_translationSetupError!, style: TextStyle(color: colors.error)),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _translationSetupError!,
+                style: TextStyle(color: colors.error),
+              ),
+              TextButton(
+                onPressed: _checkingTranslation || _busy
+                    ? null
+                    : _checkTranslation,
+                child: const Text('Retry model check'),
+              ),
+            ],
+          ),
       ],
     );
   }
@@ -1070,6 +1189,16 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
           label: Text('Enter ${_translation.source.label} text'),
         ),
         const SizedBox(height: 18),
+        SwitchListTile(
+          title: const Text('Review before translating'),
+          subtitle: const Text(
+            'Check or edit the final transcript before requesting a translation.',
+          ),
+          value: _reviewBeforeTranslation,
+          onChanged: _busy
+              ? null
+              : (value) => setState(() => _reviewBeforeTranslation = value),
+        ),
         SwitchListTile(
           title: const Text('Live captions'),
           subtitle: const Text(
@@ -1137,6 +1266,16 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
         Text(
           'Translation & playback',
           style: Theme.of(context).textTheme.titleLarge,
+        ),
+        SwitchListTile(
+          title: const Text('Translate each line separately'),
+          subtitle: const Text(
+            'For independent messages on separate lines. Can retain lines the model omits, but loses shared context and takes longer.',
+          ),
+          value: _translateLinesSeparately,
+          onChanged: _busy || _translation.translating
+              ? null
+              : (value) => setState(() => _translateLinesSeparately = value),
         ),
         const SizedBox(height: 12),
         _buildTranslationSetup(colors),
@@ -1324,6 +1463,22 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
       ],
     );
   }
+}
+
+class _SpeechDraft {
+  const _SpeechDraft({
+    required this.transcript,
+    required this.raw,
+    required this.language,
+    required this.model,
+    required this.audioNotice,
+    required this.recordingDuration,
+    required this.recognitionDuration,
+  });
+  final String transcript, raw, language, model;
+  final String? audioNotice;
+  final Duration recordingDuration;
+  final Duration? recognitionDuration;
 }
 
 String _formatDuration(Duration duration) {

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:whisper_cpp_flutter_plus/whisper_cpp_flutter_plus.dart';
 import 'package:offline_speech_translator/features/speech/data/local_whisper_speech_service.dart';
@@ -110,13 +111,155 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  Future<void> enter(WidgetTester tester, String language, String text) async {
+    await reveal(tester, find.text('Enter $language text'));
+    await tester.tap(find.text('Enter $language text'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), text);
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> swap(WidgetTester tester) async {
+    await reveal(tester, find.byTooltip('Swap languages'), delta: -250);
+    await tester.tap(find.byTooltip('Swap languages'));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets(
+    'swapping retains independent drafts and clear affects only current direction',
+    (tester) async {
+      await open(tester);
+      await enter(tester, 'Tagalog', 'Nasaan si Maria?');
+      await swap(tester);
+      await enter(tester, 'Bisaya', 'Dili ko moadto.');
+      await swap(tester);
+      expect(find.text('Nasaan si Maria?'), findsOneWidget);
+      expect(find.text('Dili ko moadto.'), findsNothing);
+      await reveal(tester, find.byTooltip('Clear current turn'));
+      await tester.tap(find.byTooltip('Clear current turn'));
+      await tester.pumpAndSettle();
+      expect(find.text('Nasaan si Maria?'), findsNothing);
+      await swap(tester);
+      expect(find.text('Dili ko moadto.'), findsOneWidget);
+      expect(translator.requests, isEmpty);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('review mode holds final speech for editing before translation', (
+    tester,
+  ) async {
+    await open(tester);
+    await tester.tap(find.byTooltip('Speech and offline settings'));
+    await tester.pumpAndSettle();
+    final review = find.widgetWithText(
+      SwitchListTile,
+      'Review before translating',
+    );
+    await reveal(tester, review);
+    await tester.tap(review);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Close settings'));
+    await tester.pumpAndSettle();
+    await reveal(tester, find.byTooltip('Start recording'), delta: -250);
+    await tester.tap(find.byTooltip('Start recording'));
+    await tester.pump();
+    expect(
+      tester
+          .widget<IconButton>(
+            find.widgetWithIcon(IconButton, Icons.swap_horiz_rounded),
+          )
+          .onPressed,
+      isNull,
+    );
+    await tester.tap(find.text('Stop'));
+    await tester.pump();
+    speech.result.complete(
+      const WhisperResult(
+        text: 'Nasaan si Mario?',
+        language: 'tl',
+        languageProbability: -1,
+        segments: [],
+        processingTime: Duration.zero,
+        systemInfo: 'test',
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(translator.requests, isEmpty);
+    expect(
+      find.text('Review your source text, then translate.'),
+      findsOneWidget,
+    );
+    final steps = tester.widget<ConversationSteps>(
+      find.byType(ConversationSteps),
+    );
+    expect(steps.hasSource, isTrue);
+    expect(steps.hasTranslation, isFalse);
+    await reveal(tester, find.byTooltip('Edit transcription'));
+    await tester.tap(find.byTooltip('Edit transcription'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Nasaan si Maria?');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    await showResult(tester);
+    expect(translator.requests.single.text, 'Nasaan si Maria?');
+    translator.requests.single.result.complete('Asa si Maria?');
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<ConversationSteps>(find.byType(ConversationSteps))
+          .hasTranslation,
+      isTrue,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'cancel new recording restores source and saved result; copy uses displayed text',
+    (tester) async {
+      final copied = <String>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+            if (call.method == 'Clipboard.setData') {
+              copied.add((call.arguments as Map)['text'] as String);
+            }
+            return null;
+          });
+      addTearDown(
+        () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(SystemChannels.platform, null),
+      );
+      await open(tester);
+      await enter(tester, 'Tagalog', 'Salamat.');
+      await showResult(tester);
+      translator.requests.single.result.complete('Daghang salamat.');
+      await tester.pumpAndSettle();
+      await reveal(tester, find.text('Translate Again'));
+      await tester.tap(find.text('Translate Again'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(find.text('Saved translation · Bisaya'), findsOneWidget);
+      await reveal(tester, find.byTooltip('Copy transcription'), delta: -250);
+      await tester.tap(find.byTooltip('Copy transcription'));
+      await tester.pumpAndSettle();
+      await reveal(tester, find.byTooltip('Copy translation').first);
+      await tester.tap(find.byTooltip('Copy translation').first);
+      await tester.pumpAndSettle();
+      expect(copied, ['Salamat.', 'Daghang salamat.']);
+      expect(translator.requests, hasLength(1));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets(
     'installed Cebuano model enables voice and translates the final Cebuano source',
     (tester) async {
       speech.cebuanoInstalled = true;
       await open(tester);
-      await reveal(tester, find.byTooltip('Swap languages and clear text'));
-      await tester.tap(find.byTooltip('Swap languages and clear text'));
+      await reveal(tester, find.byTooltip('Swap languages'));
+      await tester.tap(find.byTooltip('Swap languages'));
       await tester.pumpAndSettle();
       final microphone = find.byIcon(Icons.mic_none_rounded);
       await reveal(tester, microphone);
@@ -221,7 +364,7 @@ void main() {
     tester,
   ) async {
     await open(tester);
-    await tester.tap(find.byTooltip('Swap languages and clear text'));
+    await tester.tap(find.byTooltip('Swap languages'));
     await tester.pumpAndSettle();
     expect(
       tester

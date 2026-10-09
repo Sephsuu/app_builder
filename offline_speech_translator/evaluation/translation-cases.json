@@ -1,0 +1,287 @@
+{
+  "scope": "Diagnostic cases, not a human-reviewed quality benchmark. References must be reviewed before computing acceptance scores.",
+  "cases": [
+    {
+      "id": "greeting-tgl",
+      "category": "everyday",
+      "source": "tgl_Latn",
+      "text": "Kumusta ka?",
+      "reference": "Kumusta ka?",
+      "reference_status": "AI-drafted; pending independent fluent-speaker review",
+      "required_names": []
+    },
+    {
+      "id": "greeting-ceb",
+      "category": "everyday",
+      "source": "ceb_Latn",
+      "text": "Kumusta ka?",
+      "reference": "Kumusta ka?",
+      "reference_status": "AI-drafted; pending independent fluent-speaker review",
+      "required_names": []
+    },
+    {
+      "id": "thanks-tgl",
+      "category": "casual",
+      "source": "tgl_Latn",
+      "text": "Maraming salamat sa tulong mo.",
+      "reference": "Daghang salamat sa imong tabang.",
+      "reference_status": "AI-drafted; pending independent fluent-speaker review",
+      "required_names": []
+    },
+    {
+      "id": "thanks-ceb",
+      "category": "casual",
+      "source": "ceb_Latn",
+      "text": "Daghang salamat sa imong tabang.",
+      "reference": "Maraming salamat sa tulong mo.",
+      "reference_status": "AI-drafted; pending independent fluent-speaker review",
+      "required_names": []
+    },
+    {
+      "id": "eaten-tgl",
+      "category": "question",
+      "source": "tgl_Latn",
+      "text": "Kumain ka na ba?",
+      "reference": "Nikaon na ba ka?",
+      "reference_status": "AI-drafted; pending independent fluent-speaker review",
+      "required_names": []
+    },
+    {
+      "id": "eaten-ceb",
+      "category": "question",
+      "source": "ceb_Latn",
+      "text": "Nikaon na ba ka?",
+      "reference": "Kumain ka na ba?",
+      "reference_status": "AI-drafted; pending independent fluent-speaker review",
+      "required_names": []
+    },
+    {
+      "id": "location-tgl",
+      "category": "names_question",
+      "source": "tgl_Latn",
+      "text": "Nasaan si Maria?",
+      "reference": "Asa si Maria?",
+      "reference_status": "AI-drafted; pending independent fluent-speaker review",
+      "required_names": [
+        "Maria"
+      ]
+    },
+    {
+      "id": "location-ceb",
+      "category": "names_question",
+      "source": "ceb_Latn",
+      "text": "Asa si Maria?",
+      "reference": "Nasaan si Maria?",
+      "reference_status": "AI-drafted; pending independent fluent-speaker review",
+      "required_names": [
+        "Maria"
+      ]
+    },
+    {
+      "id": "negative-tgl",
+      "category": "negation",
+      "source": "tgl_Latn",
+      "text": "Ayaw ko ng kape.",
+      "reference": "Dili ko gusto og kape.",
+      "reference_status": "AI-drafted; pending independent fluent-speaker review",
+      "required_names": []
+    },
+    {
+      "id": "negative-ceb",
+      "category": "negation",
+      "source": "ceb_Latn",
+      "text": "Dili ko gusto og kape.",
+      "reference": "Ayaw ko ng kape.",
+      "reference_status": "AI-drafted; pending independent fluent-speaker review",
+      "required_names": []
+    },
+    {
+      "id": "date-tgl",
+      "category": "date_negation",
+      "source": "tgl_Latn",
+      "text": "Hindi ako pupunta sa Mayo 12.",
+      "reference": "Dili ko moadto sa Mayo 12.",
+      "reference_status": "AI-drafted; pending independent fluent-speaker review",
+      "required_names": []
+    },
+    {
+      "id": "date-ceb",
+      "category": "date_negation",
+      "source": "ceb_Latn",
+      "text": "Dili ko moadto sa Mayo 12.",
+      "reference": "Hindi ako pupunta sa Mayo 12.",
+      "reference_status": "AI-drafted; pending independent fluent-speaker review",
+      "required_names": []
+    },
+    {
+      "id": "command-tgl",
+      "category": "command_numbers_names",
+      "source": "tgl_Latn",
+      "text": "Pakibigay kay Juan ang 3 libro bukas.",
+      "reference": "Palihog ihatag kang Juan ang 3 ka libro ugma.",
+      "reference_status": "AI-drafted; pending independent fluent-speaker review",
+      "required_names": [
+        "Juan"
+      ]
+    },
+    {
+      "id": "command-ceb",
+      "category": "command_numbers_names",
+      "source": "ceb_Latn",
+      "text": "Palihog ihatag kang Juan ang 3 ka libro ugma.",
+      "reference": "Pakibigay kay Juan ang 3 libro bukas.",
+      "reference_status": "AI-drafted; pending independent fluent-speaker review",
+      "required_names": [
+        "Juan"
+      ]
+    },
+    {
+      "id": "casual-tgl",
+      "category": "expression",
+      "source": "tgl_Latn",
+      "text": "Sandali lang, papunta na ako.",
+      "reference": "Kadiyot lang, padulong na ko.",
+      "reference_status": "AI-drafted; pending independent fluent-speaker review",
+      "required_names": []
+    },
+    {
+      "id": "casual-ceb",
+      "category": "expression",
+      "source": "ceb_Latn",
+      "text": "Kadiyot lang, padulong na ko.",
+      "reference": "Sandali lang, papunta na ako.",
+      "reference_status": "AI-drafted; pending independent fluent-speaker review",
+      "required_names": []
+    },
+    {
+      "id": "aspect-tgl",
+      "category": "affixes",
+      "source": "tgl_Latn",
+      "text": "Kumakain pa ako, pero kakain ulit mamaya.",
+      "reference": "Nagkaon pa ko, pero mokaon ko pag-usab unya.",
+      "reference_status": "AI-drafted; pending independent fluent-speaker review",
+      "required_names": []
+    },
+    {
+      "id": "aspect-ceb",
+      "category": "affixes",
+      "source": "ceb_Latn",
+      "text": "Nagkaon pa ko, pero mokaon ko pag-usab unya.",
+      "reference": "Kumakain pa ako, pero kakain ulit mamaya.",
+      "reference_status": "AI-drafted; pending independent fluent-speaker review",
+      "required_names": []
+    },
+    {
+      "id": "clauses-tgl",
+      "category": "long_clauses",
+      "source": "tgl_Latn",
+      "text": "Kung hindi uulan bukas, pupunta kami ni Ana sa Cebu para bisitahin si Maria, pero babalik kami bago mag-alas 6.",
+      "reference": "Kung dili mag-ulan ugma, moadto mi ni Ana sa Cebu aron bisitahon si Maria, pero mobalik mi sa dili pa alas 6.",
+      "reference_status": "AI-drafted; pending independent fluent-speaker review",
+      "required_names": [
+        "Ana",
+        "Cebu",
+        "Maria"
+      ]
+    },
+    {
+      "id": "clauses-ceb",
+      "category": "long_clauses",
+      "source": "ceb_Latn",
+      "text": "Kung dili mag-ulan ugma, moadto mi ni Ana sa Cebu aron bisitahon si Maria, pero mobalik mi sa dili pa alas 6.",
+      "reference": "Kung hindi uulan bukas, pupunta kami ni Ana sa Cebu para bisitahin si Maria, pero babalik kami bago mag-alas 6.",
+      "reference_status": "AI-drafted; pending independent fluent-speaker review",
+      "required_names": [
+        "Ana",
+        "Cebu",
+        "Maria"
+      ]
+    },
+    {
+      "id": "mixed-tgl",
+      "category": "code_switch",
+      "source": "tgl_Latn",
+      "text": "I-send ang report sa alas 3. Huwag kalimutan ang pangalan ni Ana.",
+      "reference": "I-send ang report alas 3. Ayaw kalimti ang ngalan ni Ana.",
+      "reference_status": "AI-drafted; pending independent fluent-speaker review",
+      "required_names": [
+        "Ana"
+      ]
+    },
+    {
+      "id": "mixed-ceb",
+      "category": "code_switch",
+      "source": "ceb_Latn",
+      "text": "I-send ang report alas 3. Ayaw kalimti ang ngalan ni Ana.",
+      "reference": "I-send ang report sa alas 3. Huwag kalimutan ang pangalan ni Ana.",
+      "reference_status": "AI-drafted; pending independent fluent-speaker review",
+      "required_names": [
+        "Ana"
+      ]
+    },
+    {
+      "id": "lines-tgl",
+      "category": "separate_lines",
+      "source": "tgl_Latn",
+      "text": "Nasaan si Maria?\nHindi ako pupunta sa Mayo 12.\nPakibigay kay Juan ang 3 libro bukas.",
+      "reference": "Asa si Maria?\nDili ko moadto sa Mayo 12.\nPalihog ihatag kang Juan ang 3 ka libro ugma.",
+      "reference_status": "AI-drafted; pending independent fluent-speaker review",
+      "required_names": [
+        "Maria",
+        "Juan"
+      ]
+    },
+    {
+      "id": "lines-ceb",
+      "category": "separate_lines",
+      "source": "ceb_Latn",
+      "text": "Asa si Maria?\nDili ko moadto sa Mayo 12.\nPalihog ihatag kang Juan ang 3 ka libro ugma.",
+      "reference": "Nasaan si Maria?\nHindi ako pupunta sa Mayo 12.\nPakibigay kay Juan ang 3 libro bukas.",
+      "reference_status": "AI-drafted; pending independent fluent-speaker review",
+      "required_names": [
+        "Maria",
+        "Juan"
+      ]
+    },
+    {
+      "id": "lines_mixed-tgl",
+      "category": "separate_lines_code_switch",
+      "source": "tgl_Latn",
+      "text": "I-send ang report sa alas 3.\nHuwag kalimutan ang pangalan ni Ana.",
+      "reference": "I-send ang report alas 3.\nAyaw kalimti ang ngalan ni Ana.",
+      "reference_status": "AI-drafted; pending independent fluent-speaker review",
+      "required_names": [
+        "Ana"
+      ]
+    },
+    {
+      "id": "lines_mixed-ceb",
+      "category": "separate_lines_code_switch",
+      "source": "ceb_Latn",
+      "text": "I-send ang report alas 3.\nAyaw kalimti ang ngalan ni Ana.",
+      "reference": "I-send ang report sa alas 3.\nHuwag kalimutan ang pangalan ni Ana.",
+      "reference_status": "AI-drafted; pending independent fluent-speaker review",
+      "required_names": [
+        "Ana"
+      ]
+    },
+    {
+      "id": "lines_casual-tgl",
+      "category": "separate_lines_casual",
+      "source": "tgl_Latn",
+      "text": "Kumain ka na ba?\nSaan ka pupunta?\nMahal kita.",
+      "reference": "Nikaon na ba ka?\nAsa ka padulong?\nGihigugma tika.",
+      "reference_status": "AI-drafted; pending independent fluent-speaker review",
+      "required_names": []
+    },
+    {
+      "id": "lines_casual-ceb",
+      "category": "separate_lines_casual",
+      "source": "ceb_Latn",
+      "text": "Nikaon na ba ka?\nAsa ka padulong?\nGihigugma tika.",
+      "reference": "Kumain ka na ba?\nSaan ka pupunta?\nMahal kita.",
+      "reference_status": "AI-drafted; pending independent fluent-speaker review",
+      "required_names": []
+    }
+  ]
+}
