@@ -5,9 +5,13 @@ import 'package:flutter/services.dart';
 import '../data/local_whisper_speech_service.dart';
 import '../application/live_recognition.dart';
 import 'live_caption_card.dart';
+import 'salin_components.dart';
+import '../../../theme/salin_theme.dart';
 import '../../translation/application/translation_controller.dart';
 import '../../translation/data/local_translation_service.dart';
 import '../../translation/domain/translation.dart';
+
+enum _SalinPage { capture, languages, result }
 
 class SpeechHomeScreen extends StatefulWidget {
   const SpeechHomeScreen({super.key, this.speech, this.translator, this.voice});
@@ -21,6 +25,8 @@ class SpeechHomeScreen extends StatefulWidget {
 
 class _SpeechHomeScreenState extends State<SpeechHomeScreen>
     with WidgetsBindingObserver {
+  _SalinPage _page = _SalinPage.capture;
+  bool _showSettings = false;
   final GlobalKey _captionKey = GlobalKey();
   final TextEditingController _transcriptEditor = TextEditingController();
   late final LocalWhisperSpeechService _speech;
@@ -77,6 +83,14 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
       _finishing ||
       _installingTranslation ||
       _cancelling;
+
+  bool get _navigationLocked =>
+      _loadingModel ||
+      _recording ||
+      _finishing ||
+      _cancelling ||
+      _installingModel ||
+      _installingTranslation;
 
   @override
   void initState() {
@@ -537,289 +551,798 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    return Scaffold(
-      body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(child: _buildHeader(colors)),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-              sliver: SliverList.list(
+    final yellow = !_showSettings && _page == _SalinPage.languages;
+    return PopScope(
+      canPop:
+          !_showSettings && _page == _SalinPage.capture && !_navigationLocked,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && !_navigationLocked) _goBack();
+      },
+      child: Scaffold(
+        backgroundColor: yellow ? SalinTheme.yellow : Colors.white,
+        body: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: Column(
                 children: [
-                  _buildIntro(),
-                  const SizedBox(height: 20),
-                  _buildLanguageCard(colors),
-                  const SizedBox(height: 12),
-                  if (_tagalogSource)
-                    DropdownButtonFormField<String>(
-                      isExpanded: true,
-                      key: ValueKey(_inputLanguage),
-                      initialValue: _inputLanguage,
-                      decoration: const InputDecoration(
-                        labelText: 'Recognition language',
-                      ),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'tl',
-                          child: Text('Tagalog / Filipino'),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          tooltip: _showSettings ? 'Close settings' : 'Back',
+                          onPressed: _navigationLocked ? null : _goBack,
+                          icon: const Icon(Icons.arrow_back_rounded),
                         ),
-                        DropdownMenuItem(value: 'en', child: Text('English')),
-                        DropdownMenuItem(
-                          value: 'auto',
-                          child: Text(
-                            'Auto-detect · experimental',
-                            overflow: TextOverflow.ellipsis,
+                        Expanded(
+                          child: _showSettings
+                              ? Text(
+                                  'Speech & offline setup',
+                                  textAlign: TextAlign.center,
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.titleMedium,
+                                )
+                              : const SizedBox.shrink(),
+                        ),
+                        IconButton(
+                          tooltip: 'Speech and offline settings',
+                          onPressed: () =>
+                              setState(() => _showSettings = !_showSettings),
+                          icon: Icon(
+                            _showSettings ? Icons.close : Icons.tune_rounded,
                           ),
                         ),
                       ],
-                      onChanged: _busy
-                          ? null
-                          : (value) {
-                              if (value != null) {
-                                _translation.edit('');
-                                setState(() {
-                                  _inputLanguage = value;
-                                  _transcript = '';
-                                  _rawTranscript = '';
-                                });
-                              }
-                            },
-                    ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _tagalogSource
-                        ? 'English and auto-detect remain recognition-only modes. Use Tagalog input for automatic translation.'
-                        : (_cebuanoInstalled
-                              ? 'Cebuano voice uses the trained Small model after Finish. English mixing is experimental; recognition takes longer.'
-                              : 'Import the Cebuano speech model to enable voice input, or enter Cebuano text below.'),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF71807A),
                     ),
                   ),
-                  TextButton.icon(
-                    onPressed: _busy
-                        ? null
-                        : () => _editTranscript(enterText: true),
-                    icon: const Icon(Icons.keyboard_outlined),
-                    label: Text('Enter ${_translation.source.label} text'),
-                  ),
-                  const SizedBox(height: 18),
-                  SwitchListTile(
-                    title: const Text('Live captions'),
-                    subtitle: const Text(
-                      'Words appear as recognition completes. Uses more battery.',
-                    ),
-                    value: _liveEnabled && !_useCebuanoModel,
-                    onChanged: _busy || _useCebuanoModel
-                        ? null
-                        : (value) => setState(() => _liveEnabled = value),
-                  ),
-                  SwitchListTile(
-                    title: const Text('Reduce background noise · experimental'),
-                    subtitle: const Text(
-                      'Uses device suppression when available. Off preserves the original audio path; compare results on your phone.',
-                    ),
-                    value: _noiseSuppression,
-                    onChanged: _busy
-                        ? null
-                        : (value) => setState(() => _noiseSuppression = value),
-                  ),
-                  SwitchListTile(
-                    title: const Text('Refine with Whisper Base'),
-                    subtitle: const Text(
-                      'Selected when Base is installed. Uses Tiny for live text and Base after Finish. More accurate in our Tagalog samples, but slower.',
-                    ),
-                    value: _preferAccuracy && !_useCebuanoModel,
-                    onChanged: _busy || _useCebuanoModel
-                        ? null
-                        : (value) async {
-                            setState(() {
-                              _preferAccuracy = value;
-                              _checkingModel = true;
-                              _error = null;
-                            });
-                            await _refreshModelStatus();
+                  Expanded(
+                    child: _showSettings
+                        ? _buildSettings(colors)
+                        : switch (_page) {
+                            _SalinPage.capture => _buildCapture(colors),
+                            _SalinPage.languages => _buildLanguageSelection(
+                              colors,
+                            ),
+                            _SalinPage.result => _buildResult(colors),
                           },
                   ),
-                  SwitchListTile(
-                    title: const Text('Cebuano / mixed speech · experimental'),
-                    subtitle: Text(
-                      _cebuanoInstalled
-                          ? 'Uses Cebuano Small after Finish. Cebuano–English is the training focus; Tagalog mixing is not yet validated.'
-                          : 'Requires the converted 190 MB research model. Import it below.',
-                    ),
-                    value: _useCebuanoModel,
-                    onChanged: _busy || !_tagalogSource || !_cebuanoInstalled
-                        ? null
-                        : (value) => setState(() => _mixedSpeech = value),
-                  ),
-                  TextButton.icon(
-                    onPressed: _busy ? null : _importCebuano,
-                    icon: const Icon(Icons.file_open_outlined),
-                    label: Text(
-                      _cebuanoInstalled
-                          ? 'Replace Cebuano speech model'
-                          : 'Import Cebuano speech model',
-                    ),
-                  ),
-                  if (_tagalogSource &&
-                      !_useCebuanoModel &&
-                      (!_modelInstalled || _installingModel || _checkingModel))
-                    _buildModelCard(colors),
-                  if (_canRecord) _buildRecorderCard(colors),
-                  if (_audioNotice != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: Text(
-                        _audioNotice!,
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ),
-                  if (_error != null) ...[
-                    const SizedBox(height: 14),
-                    _buildError(colors),
-                  ],
-                  if (_recording || _transcript.isNotEmpty || _finishing) ...[
-                    const SizedBox(height: 18),
-                    KeyedSubtree(
-                      key: _captionKey,
-                      child: _buildTranscriptCard(colors),
-                    ),
-                  ],
-                  const SizedBox(height: 14),
-                  _buildTranslationCard(colors),
-                  const SizedBox(height: 22),
-                  _buildPrivacyNote(colors),
                 ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildHeader(ColorScheme colors) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(22, 18, 22, 12),
-      child: Row(
-        children: [
-          Container(
-            height: 42,
-            width: 42,
-            decoration: BoxDecoration(
-              color: const Color(0xFFE0F0E9),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Icon(
-              Icons.graphic_eq_rounded,
-              color: Color(0xFF187C70),
-            ),
-          ),
-          const SizedBox(width: 11),
-          const Expanded(
+  void _goBack() {
+    if (_showSettings) {
+      setState(() => _showSettings = false);
+    } else if (_page != _SalinPage.capture) {
+      unawaited(_translation.stopPlayback());
+      setState(() => _page = _SalinPage.capture);
+    } else {
+      Navigator.of(context).maybePop();
+    }
+  }
+
+  void _startAgain({bool done = false}) {
+    if (_busy) return;
+    _translation.edit(''); // Invalidates any outstanding translation/playback.
+    setState(() {
+      _transcript = '';
+      _rawTranscript = '';
+      _live = const LiveRecognitionSnapshot();
+      _audioNotice = null;
+      _error = null;
+      _recordingDuration = Duration.zero;
+      _recognitionDuration = null;
+      _page = _SalinPage.capture;
+    });
+    if (done) {
+      // Rebuild PopScope for the capture page before asking the route to pop.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) Navigator.of(context).maybePop();
+      });
+    }
+  }
+
+  Widget _buildCapture(ColorScheme colors) {
+    final source = _inputLanguage == 'en'
+        ? 'English'
+        : _inputLanguage == 'auto'
+        ? 'Auto-detected'
+        : _translation.source.label;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          key: const PageStorageKey('capture'),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  'Sulti',
-                  style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: 4),
+                    const SalinSteps(current: 1),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(28, 36, 28, 14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: SalinLanguageHeading(language: source),
+                                ),
+                              ),
+                              PopupMenuButton<TranslationLanguage>(
+                                tooltip: 'Choose source language',
+                                enabled: !_busy,
+                                onSelected: _selectDirection,
+                                itemBuilder: (_) => TranslationLanguage.values
+                                    .map(
+                                      (language) => PopupMenuItem(
+                                        value: language,
+                                        child: Text(language.label),
+                                      ),
+                                    )
+                                    .toList(),
+                                icon: const Icon(Icons.expand_more_rounded),
+                              ),
+                              IconButton(
+                                tooltip: 'Swap languages and clear text',
+                                onPressed: _busy
+                                    ? null
+                                    : () =>
+                                          _selectDirection(_translation.target),
+                                icon: const Icon(Icons.swap_horiz_rounded),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          ConstrainedBox(
+                            constraints: BoxConstraints(
+                              minHeight: (constraints.maxHeight * .20).clamp(
+                                100.0,
+                                180.0,
+                              ),
+                            ),
+                            child: KeyedSubtree(
+                              key: _captionKey,
+                              child:
+                                  (_recording || _finishing) &&
+                                      _liveEnabled &&
+                                      !_useCebuanoModel
+                                  ? LiveCaptionCard(
+                                      snapshot: _live,
+                                      finalizing: _finishing,
+                                    )
+                                  : _transcript.isNotEmpty
+                                  ? SelectableText(
+                                      _transcript,
+                                      key: const PageStorageKey(
+                                        'capture-transcript-text',
+                                      ),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyLarge
+                                          ?.copyWith(
+                                            fontSize: 28,
+                                            fontWeight: FontWeight.w700,
+                                            height: 1.6,
+                                          ),
+                                    )
+                                  : Text(
+                                      _recording
+                                          ? 'Recording locally. Tap Finish when you’re ready.'
+                                          : _finishing
+                                          ? 'Recognizing speech…'
+                                          : 'Tap the microphone\nand say something.',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleLarge
+                                          ?.copyWith(
+                                            color: SalinTheme.muted,
+                                            height: 1.5,
+                                          ),
+                                    ),
+                            ),
+                          ),
+                          if (_transcript.isNotEmpty) ...[
+                            Wrap(
+                              spacing: 4,
+                              children: [
+                                IconButton(
+                                  tooltip: 'Edit transcription',
+                                  onPressed: _busy ? null : _editTranscript,
+                                  icon: const Icon(Icons.edit_outlined),
+                                ),
+                                IconButton(
+                                  tooltip: 'Copy transcription',
+                                  onPressed: _copyTranscript,
+                                  icon: const Icon(Icons.copy_rounded),
+                                ),
+                              ],
+                            ),
+                            const Text(
+                              'Review names and unclear words before using this text.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: SalinTheme.muted,
+                              ),
+                            ),
+                          ],
+                          if (_audioNotice != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 12),
+                              child: Text(_audioNotice!),
+                            ),
+                          if (_error != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 12),
+                              child: _buildError(colors),
+                            ),
+                          if (!_canRecord && !_checkingModel) ...[
+                            const SizedBox(height: 12),
+                            Text(
+                              _useCebuanoModel
+                                  ? 'Import the Cebuano speech model in settings to record, or enter text.'
+                                  : 'Install the speech model in settings to record, or enter text.',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: SalinTheme.muted,
+                              ),
+                            ),
+                            TextButton.icon(
+                              onPressed: () =>
+                                  setState(() => _showSettings = true),
+                              icon: const Icon(Icons.download_outlined),
+                              label: const Text('Set up offline speech'),
+                            ),
+                          ],
+                          TextButton.icon(
+                            onPressed: _busy
+                                ? null
+                                : () => _editTranscript(enterText: true),
+                            icon: const Icon(Icons.keyboard_outlined),
+                            label: Text(
+                              'Enter ${_translation.source.label} text',
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          SizedBox(
+                            width: double.infinity,
+                            child: FilledButton(
+                              onPressed:
+                                  _busy || _translation.transcript.isEmpty
+                                  ? null
+                                  : () => setState(
+                                      () => _page = _SalinPage.languages,
+                                    ),
+                              child: const Text('Translate'),
+                            ),
+                          ),
+                          if (_inputLanguage != 'tl' && _inputLanguage != 'ceb')
+                            const Padding(
+                              padding: EdgeInsets.only(top: 8),
+                              child: Text(
+                                'This recognition mode does not translate. Select Tagalog or Bisaya to translate.',
+                                style: TextStyle(fontSize: 12),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                Text(
-                  'Voice translator',
-                  style: TextStyle(fontSize: 12, color: Color(0xFF73817C)),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [const SalinWaveform(), _buildRecorderControls()],
                 ),
               ],
             ),
           ),
-          _StatusBadge(
-            icon: _modelInstalled
-                ? Icons.verified_user_outlined
-                : Icons.shield_outlined,
-            label: _modelInstalled ? 'ASR LOCAL' : 'LOCAL AI',
-            background: const Color(0xFFE5F3ED),
-            foreground: colors.primary,
-          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildRecorderControls() {
+    return Container(
+      color: Colors.black,
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+      child: Column(
+        children: [
+          if (_recording) ...[
+            const SizedBox(height: 16),
+            Text(
+              _formatDuration(_recordingDuration),
+              style: const TextStyle(
+                color: Colors.white,
+                fontFeatures: [FontFeature.tabularFigures()],
+                fontSize: 18,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Listening · up to 5 minutes',
+              style: TextStyle(color: Colors.white),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _cancelling ? null : _cancelRecording,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      side: const BorderSide(color: Colors.white),
+                    ),
+                    child: const Text('Cancel'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: _cancelling ? null : _stopRecording,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: SalinTheme.yellow,
+                      foregroundColor: Colors.black,
+                    ),
+                    icon: const Icon(Icons.stop_rounded),
+                    label: const Text('Finish'),
+                  ),
+                ),
+              ],
+            ),
+          ] else if (_loadingModel || _finishing || _cancelling) ...[
+            const SizedBox(height: 24),
+            if (_finishing)
+              LinearProgressIndicator(value: _recognitionProgress)
+            else
+              const CircularProgressIndicator(color: SalinTheme.yellow),
+            const SizedBox(height: 12),
+            Text(
+              _cancelling
+                  ? 'Cancelling…'
+                  : _loadingModel
+                  ? 'Loading speech model…'
+                  : 'Recognizing locally ${((_recognitionProgress ?? 0) * 100).round()}%',
+              style: const TextStyle(color: Colors.white),
+            ),
+            if (!_cancelling)
+              TextButton(
+                onPressed: _cancelRecording,
+                style: TextButton.styleFrom(foregroundColor: Colors.white),
+                child: Text(_finishing ? 'Cancel recognition' : 'Cancel'),
+              ),
+          ] else ...[
+            Transform.translate(
+              offset: const Offset(0, -12),
+              child: SizedBox(
+                width: 104,
+                height: 104,
+                child: IconButton.filled(
+                  tooltip: 'Start recording',
+                  onPressed: !_canRecord || _busy ? null : _startRecording,
+                  style: IconButton.styleFrom(
+                    backgroundColor: SalinTheme.yellow,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: const Color(0xFF484848),
+                    disabledForegroundColor: Colors.white54,
+                    side: const BorderSide(color: Colors.black, width: 5),
+                  ),
+                  icon: const Icon(Icons.mic_none_rounded, size: 56),
+                ),
+              ),
+            ),
+            Text(
+              _checkingModel
+                  ? 'Checking speech model…'
+                  : _canRecord
+                  ? 'Tap to speak'
+                  : 'Set up speech to record',
+              style: const TextStyle(color: Colors.white, fontSize: 12),
+            ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildIntro() {
-    return const Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildLanguageSelection(ColorScheme colors) {
+    return ListView(
+      key: const PageStorageKey('languages'),
       children: [
-        Text(
-          'Make yourself\nunderstood.',
-          style: TextStyle(
-            color: Color(0xFF182C2A),
-            fontSize: 34,
-            height: 1.08,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -1.2,
+        const SizedBox(height: 4),
+        const SalinSteps(current: 2),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(28, 52, 28, 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Choose Translation',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              const SizedBox(height: 30),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(
+                  _translation.target.label,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 18,
+                  ),
+                ),
+                trailing: const Icon(Icons.west_rounded, size: 40),
+                selected: true,
+                selectedColor: Colors.black,
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'From ${_translation.source.label}. More languages are not available offline yet.',
+                style: const TextStyle(fontSize: 13, height: 1.5),
+              ),
+              const SizedBox(height: 140),
+              if (!_translationInstalled ||
+                  _checkingTranslation ||
+                  _translationSetupError != null)
+                _buildTranslationSetup(colors),
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed:
+                    _busy ||
+                        _checkingTranslation ||
+                        !_translationInstalled ||
+                        _translation.transcript.isEmpty
+                    ? null
+                    : () {
+                        setState(() => _page = _SalinPage.result);
+                        // Finish already translates finalized speech. Reuse that job/result.
+                        if (!_translation.translating &&
+                            _translation.translated.isEmpty) {
+                          unawaited(_translate());
+                        }
+                      },
+                child: const Text('Translate'),
+              ),
+            ],
           ),
-        ),
-        SizedBox(height: 8),
-        Text(
-          'Tagalog and Cebuano, in either direction.',
-          style: TextStyle(color: Color(0xFF71807A), fontSize: 15),
         ),
       ],
     );
   }
 
-  Widget _buildLanguageCard(ColorScheme colors) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Expanded(
-              child: PopupMenuButton<TranslationLanguage>(
-                tooltip: 'Choose source language',
-                enabled: !_busy,
-                onSelected: _selectDirection,
-                itemBuilder: (_) => TranslationLanguage.values
-                    .map(
-                      (language) => PopupMenuItem(
-                        value: language,
-                        child: Text(language.label),
-                      ),
-                    )
-                    .toList(),
-                child: _LanguageTile(
-                  label: 'FROM',
-                  language: _translation.source.label,
-                  code: _tagalogSource ? 'FIL' : 'CEBUANO',
+  Widget _buildResult(ColorScheme colors) {
+    return ListView(
+      key: const PageStorageKey('result'),
+      padding: const EdgeInsets.fromLTRB(28, 120, 28, 32),
+      children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: SalinLanguageHeading(language: _translation.target.label),
+        ),
+        const SizedBox(height: 24),
+        if (_translation.translating) ...[
+          const LinearProgressIndicator(),
+          const SizedBox(height: 16),
+          Text('Translating to ${_translation.target.label} on this device…'),
+        ] else if (_translation.translated.isNotEmpty)
+          SelectableText(
+            _translation.translated,
+            key: const PageStorageKey('translated-text'),
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              fontSize: 28,
+              fontWeight: FontWeight.w700,
+              height: 1.6,
+            ),
+          )
+        else
+          const Text('Your translation will appear here.'),
+        if (_translation.error != null) ...[
+          const SizedBox(height: 16),
+          Text(_translation.error!, style: TextStyle(color: colors.error)),
+          TextButton.icon(
+            onPressed:
+                _busy || _translation.translating || !_translationInstalled
+                ? null
+                : _translate,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Retry translation'),
+          ),
+        ],
+        const SizedBox(height: 88),
+        if (_translation.translated.isNotEmpty) ...[
+          Wrap(
+            spacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              IconButton(
+                tooltip: 'Copy translation',
+                onPressed: () async {
+                  await Clipboard.setData(
+                    ClipboardData(text: _translation.translated),
+                  );
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Translation copied')),
+                    );
+                  }
+                },
+                icon: const Icon(Icons.copy_rounded, size: 28),
+              ),
+              TextButton.icon(
+                onPressed: _translation.playing
+                    ? _translation.stopPlayback
+                    : _translation.play,
+                icon: Icon(
+                  _translation.playing
+                      ? Icons.stop_rounded
+                      : Icons.volume_up_outlined,
+                ),
+                label: Text(
+                  _translation.playing ? 'Stop playback' : 'Play translation',
                 ),
               ),
+            ],
+          ),
+          if (_translation.voiceNotice != null) Text(_translation.voiceNotice!),
+        ],
+        const SizedBox(height: 22),
+        FilledButton(
+          onPressed: _busy ? null : () => _startAgain(done: true),
+          child: const Text('Done'),
+        ),
+        const SizedBox(height: 12),
+        FilledButton(
+          onPressed: _busy ? null : _startAgain,
+          style: FilledButton.styleFrom(
+            backgroundColor: SalinTheme.yellow,
+            foregroundColor: Colors.black,
+          ),
+          child: const Text('Translate Again'),
+        ),
+        const SizedBox(height: 24),
+        if (_translation.translated.isNotEmpty)
+          const Text(
+            'Review meaning, names and numbers. This model can omit or mistranslate details.',
+            style: TextStyle(
+              fontSize: 12,
+              color: SalinTheme.muted,
+              height: 1.5,
             ),
-            Container(
-              height: 42,
-              width: 42,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF0F5F1),
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: IconButton(
-                tooltip: 'Swap languages and clear text',
-                onPressed: _busy
-                    ? null
-                    : () => _selectDirection(_translation.target),
-                icon: Icon(Icons.swap_horiz_rounded, color: colors.primary),
+          ),
+        const SizedBox(height: 8),
+        ExpansionTile(
+          key: const PageStorageKey('result-source-details'),
+          tilePadding: EdgeInsets.zero,
+          title: Text('Source · ${_translation.source.label}'),
+          children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: SelectableText(
+                _transcript,
+                key: const PageStorageKey('result-source-text'),
               ),
             ),
-            Expanded(
-              child: _LanguageTile(
-                label: 'TO',
-                language: _translation.target.label,
-                code: _tagalogSource ? 'CEBUANO' : 'FIL',
-              ),
+            Row(
+              children: [
+                IconButton(
+                  tooltip: 'Edit transcription',
+                  onPressed: _busy
+                      ? null
+                      : () async {
+                          await _editTranscript();
+                          if (mounted) {
+                            setState(() => _page = _SalinPage.capture);
+                          }
+                        },
+                  icon: const Icon(Icons.edit_outlined),
+                ),
+                IconButton(
+                  tooltip: 'Copy transcription',
+                  onPressed: _copyTranscript,
+                  icon: const Icon(Icons.copy_rounded),
+                ),
+              ],
             ),
           ],
         ),
-      ),
+      ],
+    );
+  }
+
+  Widget _buildTranslationSetup(ColorScheme colors) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (_checkingTranslation) ...[
+          const LinearProgressIndicator(),
+          const Text('Checking translation model…'),
+        ] else if (!_translationInstalled || _installingTranslation) ...[
+          const Text(
+            'Install offline translation · about 900 MB. NLLB research model, for noncommercial use. Setup needs internet and free storage.',
+          ),
+          const SizedBox(height: 12),
+          if (_installingTranslation) ...[
+            LinearProgressIndicator(value: _translationProgress),
+            Text(
+              'Installing translation ${((_translationProgress ?? 0) * 100).round()}%',
+            ),
+          ] else
+            FilledButton.icon(
+              onPressed: _busy ? null : _installTranslation,
+              icon: const Icon(Icons.download_rounded),
+              label: const Text('Install translation model'),
+            ),
+        ] else
+          const Text('Offline translation model installed.'),
+        if (_translationSetupError != null)
+          Text(_translationSetupError!, style: TextStyle(color: colors.error)),
+      ],
+    );
+  }
+
+  Widget _buildSettings(ColorScheme colors) {
+    return ListView(
+      key: const PageStorageKey('settings'),
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+      children: [
+        if (_tagalogSource)
+          DropdownButtonFormField<String>(
+            isExpanded: true,
+            key: ValueKey(_inputLanguage),
+            initialValue: _inputLanguage,
+            decoration: const InputDecoration(
+              labelText: 'Recognition language',
+            ),
+            items: const [
+              DropdownMenuItem(value: 'tl', child: Text('Tagalog / Filipino')),
+              DropdownMenuItem(value: 'en', child: Text('English')),
+              DropdownMenuItem(
+                value: 'auto',
+                child: Text(
+                  'Auto-detect · experimental',
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+            onChanged: _busy
+                ? null
+                : (value) {
+                    if (value != null) {
+                      _translation.edit('');
+                      setState(() {
+                        _inputLanguage = value;
+                        _transcript = '';
+                        _rawTranscript = '';
+                      });
+                    }
+                  },
+          ),
+        const SizedBox(height: 8),
+        Text(
+          _tagalogSource
+              ? 'English and auto-detect remain recognition-only modes. Use Tagalog input for automatic translation.'
+              : (_cebuanoInstalled
+                    ? 'Cebuano voice uses the trained Small model after Finish. English mixing is experimental; recognition takes longer.'
+                    : 'Import the Cebuano speech model to enable voice input, or enter Cebuano text below.'),
+          style: const TextStyle(fontSize: 12, color: Color(0xFF626262)),
+        ),
+        TextButton.icon(
+          onPressed: _busy ? null : () => _editTranscript(enterText: true),
+          icon: const Icon(Icons.keyboard_outlined),
+          label: Text('Enter ${_translation.source.label} text'),
+        ),
+        const SizedBox(height: 18),
+        SwitchListTile(
+          title: const Text('Live captions'),
+          subtitle: const Text(
+            'Words appear as recognition completes. Uses more battery.',
+          ),
+          value: _liveEnabled && !_useCebuanoModel,
+          onChanged: _busy || _useCebuanoModel
+              ? null
+              : (value) => setState(() => _liveEnabled = value),
+        ),
+        SwitchListTile(
+          title: const Text('Reduce background noise · experimental'),
+          subtitle: const Text(
+            'Uses device suppression when available. Off preserves the original audio path; compare results on your phone.',
+          ),
+          value: _noiseSuppression,
+          onChanged: _busy
+              ? null
+              : (value) => setState(() => _noiseSuppression = value),
+        ),
+        SwitchListTile(
+          title: const Text('Refine with Whisper Base'),
+          subtitle: const Text(
+            'Selected when Base is installed. Uses Tiny for live text and Base after Finish. More accurate in our Tagalog samples, but slower.',
+          ),
+          value: _preferAccuracy && !_useCebuanoModel,
+          onChanged: _busy || _useCebuanoModel
+              ? null
+              : (value) async {
+                  setState(() {
+                    _preferAccuracy = value;
+                    _checkingModel = true;
+                    _error = null;
+                  });
+                  await _refreshModelStatus();
+                },
+        ),
+        SwitchListTile(
+          title: const Text('Cebuano / mixed speech · experimental'),
+          subtitle: Text(
+            _cebuanoInstalled
+                ? 'Uses Cebuano Small after Finish. Cebuano–English is the training focus; Tagalog mixing is not yet validated.'
+                : 'Requires the converted 190 MB research model. Import it below.',
+          ),
+          value: _useCebuanoModel,
+          onChanged: _busy || !_tagalogSource || !_cebuanoInstalled
+              ? null
+              : (value) => setState(() => _mixedSpeech = value),
+        ),
+        TextButton.icon(
+          onPressed: _busy ? null : _importCebuano,
+          icon: const Icon(Icons.file_open_outlined),
+          label: Text(
+            _cebuanoInstalled
+                ? 'Replace Cebuano speech model'
+                : 'Import Cebuano speech model',
+          ),
+        ),
+        if (_tagalogSource &&
+            !_useCebuanoModel &&
+            (!_modelInstalled || _installingModel || _checkingModel))
+          _buildModelCard(colors),
+
+        const SizedBox(height: 24),
+        Text(
+          'Translation & playback',
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
+        const SizedBox(height: 12),
+        _buildTranslationSetup(colors),
+        const SizedBox(height: 12),
+        const Text(
+          'Playback uses an installed offline voice for the target language when available.',
+        ),
+        if (_error != null) _buildError(colors),
+        if (_transcript.isNotEmpty) ...[
+          const SizedBox(height: 24),
+          Text(
+            'Recording details',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          Text(
+            '$_resultModelLabel · ${_formatDuration(_recordingDuration)}'
+            '${_recognitionDuration == null ? '' : ' · recognized in ${(_recognitionDuration!.inMilliseconds / 1000).toStringAsFixed(1)}s'}',
+          ),
+          if (_rawTranscript.isNotEmpty && _transcript != _rawTranscript.trim())
+            ExpansionTile(
+              title: const Text('Original recognition · edited above'),
+              children: [
+                SelectableText(
+                  _rawTranscript,
+                  key: const PageStorageKey('original-transcript-text'),
+                ),
+              ],
+            ),
+        ],
+        const SizedBox(height: 24),
+        _buildPrivacyNote(colors),
+      ],
     );
   }
 
@@ -837,12 +1360,12 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
                   width: 42,
                   height: 42,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEAF2FB),
+                    color: const Color(0xFFFFF4CF),
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: const Icon(
                     Icons.memory_rounded,
-                    color: Color(0xFF4A709A),
+                    color: Color(0xFF000000),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -865,7 +1388,7 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
                             ? 'About 60 MB. A larger multilingual model to compare with Tiny. Accuracy improvement is not yet measured; recognition may take longer.'
                             : 'One-time download · multilingual Whisper tiny · about 32 MB · faster, with some accuracy trade-off',
                         style: TextStyle(
-                          color: Color(0xFF71807A),
+                          color: Color(0xFF626262),
                           fontSize: 13,
                           height: 1.35,
                         ),
@@ -881,7 +1404,7 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
               const SizedBox(height: 8),
               const Text(
                 'Checking installed models…',
-                style: TextStyle(color: Color(0xFF71807A), fontSize: 12),
+                style: TextStyle(color: Color(0xFF626262), fontSize: 12),
               ),
             ] else if (_installingModel) ...[
               const SizedBox(height: 17),
@@ -891,7 +1414,7 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
                 _downloadProgress == null
                     ? 'Preparing download…'
                     : 'Downloading model ${(_downloadProgress! * 100).round()}%',
-                style: const TextStyle(color: Color(0xFF71807A), fontSize: 12),
+                style: const TextStyle(color: Color(0xFF626262), fontSize: 12),
               ),
             ] else ...[
               const SizedBox(height: 16),
@@ -917,189 +1440,7 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
               const Text(
                 'Connect once to download. Audio and recognition stay on this phone.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Color(0xFF71807A), fontSize: 12),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRecorderCard(ColorScheme colors) {
-    final recording = _recording;
-    return Card(
-      color: const Color(0xFF183C38),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 18, 18, 17),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    'Speech recording',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-                _StatusBadge(
-                  icon: recording
-                      ? Icons.fiber_manual_record_rounded
-                      : Icons.check_circle_outline_rounded,
-                  label: recording
-                      ? 'LISTENING'
-                      : _loadingModel
-                      ? 'STARTING'
-                      : _finishing
-                      ? 'TRANSCRIBING'
-                      : 'READY',
-                  background: recording
-                      ? const Color(0xFF6B302D)
-                      : const Color(0xFF285850),
-                  foreground: Colors.white,
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                recording
-                    ? 'Speak naturally. Tap Finish when done · up to 5 minutes.'
-                    : _finishing
-                    ? 'Finishing the local transcription…'
-                    : _loadingModel
-                    ? 'Loading Whisper into memory. Recording starts next…'
-                    : 'Your recording is processed on this phone.',
-                style: const TextStyle(color: Color(0xFFC2D7D0), fontSize: 13),
-              ),
-            ),
-            const SizedBox(height: 20),
-            if (recording) ...[
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const _PulseDot(),
-                  const SizedBox(width: 8),
-                  Text(
-                    _formatDuration(_recordingDuration),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontFeatures: [FontFeature.tabularFigures()],
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-            ],
-            if (_cancelling)
-              const Padding(
-                padding: EdgeInsets.all(12),
-                child: Text(
-                  'Cancelling…',
-                  style: TextStyle(color: Colors.white),
-                ),
-              )
-            else if (_loadingModel)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8),
-                child: CircularProgressIndicator(color: Color(0xFF9FE2CC)),
-              )
-            else if (_finishing)
-              Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Column(
-                      children: [
-                        LinearProgressIndicator(value: _recognitionProgress),
-                        const SizedBox(height: 8),
-                        Text(
-                          _recognitionProgress == null
-                              ? 'Preparing local recognition…'
-                              : 'Recognizing locally ${(_recognitionProgress! * 100).round()}%',
-                          style: const TextStyle(
-                            color: Color(0xFFC2D7D0),
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: _cancelRecording,
-                    icon: const Icon(Icons.close_rounded),
-                    label: const Text('Cancel recognition'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      side: const BorderSide(color: Color(0xFF74958C)),
-                      minimumSize: const Size.fromHeight(44),
-                    ),
-                  ),
-                ],
-              )
-            else if (recording)
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _cancelRecording,
-                      icon: const Icon(Icons.close_rounded),
-                      label: const Text('Cancel'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        side: const BorderSide(color: Color(0xFF74958C)),
-                        minimumSize: const Size.fromHeight(48),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: _stopRecording,
-                      icon: const Icon(Icons.stop_rounded),
-                      label: const Text('Finish'),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFFD8F0E6),
-                        foregroundColor: const Color(0xFF183C38),
-                        minimumSize: const Size.fromHeight(48),
-                      ),
-                    ),
-                  ),
-                ],
-              )
-            else
-              Semantics(
-                button: true,
-                label: 'Start recording',
-                child: InkWell(
-                  onTap: _busy ? null : _startRecording,
-                  customBorder: const CircleBorder(),
-                  child: Container(
-                    width: 76,
-                    height: 76,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFD8F0E6),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.mic_none_rounded,
-                      size: 35,
-                      color: colors.primary,
-                    ),
-                  ),
-                ),
-              ),
-            if (!recording && !_loadingModel && !_finishing) ...[
-              const SizedBox(height: 9),
-              const Text(
-                'Tap to speak',
-                style: TextStyle(color: Color(0xFFC2D7D0), fontSize: 12),
+                style: TextStyle(color: Color(0xFF626262), fontSize: 12),
               ),
             ],
           ],
@@ -1138,210 +1479,6 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
     );
   }
 
-  Widget _buildTranscriptCard(ColorScheme colors) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(17),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Source · ${_inputLanguage == 'en'
-                        ? 'English'
-                        : _inputLanguage == 'auto'
-                        ? 'Auto-detected'
-                        : _translation.source.label}',
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                if (_transcript.isNotEmpty && !_busy)
-                  IconButton(
-                    tooltip: 'Edit transcription',
-                    onPressed: _editTranscript,
-                    icon: const Icon(Icons.edit_outlined, size: 19),
-                  ),
-                if (_transcript.isNotEmpty)
-                  IconButton(
-                    tooltip: 'Copy transcription',
-                    onPressed: _copyTranscript,
-                    icon: const Icon(Icons.copy_rounded, size: 19),
-                    visualDensity: VisualDensity.compact,
-                  ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            if ((_recording || _finishing) && _liveEnabled && !_useCebuanoModel)
-              LiveCaptionCard(snapshot: _live, finalizing: _finishing)
-            else if (_transcript.isEmpty && _finishing)
-              const Text(
-                'Recognizing speech…',
-                style: TextStyle(color: Color(0xFF71807A), fontSize: 15),
-              )
-            else if (_transcript.isEmpty && _recording)
-              const Text(
-                'Recording locally. Speech is recognized after you tap Finish.',
-                style: TextStyle(
-                  color: Color(0xFF71807A),
-                  fontSize: 14,
-                  height: 1.45,
-                ),
-              )
-            else
-              Text(
-                _transcript,
-                style: const TextStyle(
-                  color: Color(0xFF243A35),
-                  fontSize: 17,
-                  height: 1.5,
-                ),
-              ),
-            if (_transcript.isNotEmpty && !_busy) ...[
-              const SizedBox(height: 8),
-              const Text(
-                'Review names and unclear words before using this text.',
-              ),
-              if (_rawTranscript.isNotEmpty &&
-                  _transcript != _rawTranscript.trim())
-                ExpansionTile(
-                  title: const Text('Original recognition · edited above'),
-                  children: [SelectableText(_rawTranscript)],
-                ),
-            ],
-            const SizedBox(height: 10),
-            Text(
-              _rawTranscript.isEmpty && _transcript.isNotEmpty
-                  ? 'Entered source text'
-                  : '$_resultModelLabel · ${_formatDuration(_recordingDuration)}'
-                        '${_recognitionDuration == null ? '' : ' · recognized in ${(_recognitionDuration!.inMilliseconds / 1000).toStringAsFixed(1)}s'}',
-              style: const TextStyle(color: Color(0xFF89958F), fontSize: 11),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTranslationCard(ColorScheme colors) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(17),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Translation · ${_translation.target.label}',
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 10),
-            if (_checkingTranslation) ...[
-              const LinearProgressIndicator(),
-              const Text('Checking translation model…'),
-            ] else if (!_translationInstalled || _installingTranslation) ...[
-              const Text(
-                'Install offline translation · about 900 MB. NLLB research model, for noncommercial use. Setup needs internet and free storage.',
-              ),
-              if (_installingTranslation) ...[
-                const SizedBox(height: 10),
-                LinearProgressIndicator(value: _translationProgress),
-                Text(
-                  'Installing translation ${((_translationProgress ?? 0) * 100).round()}%',
-                ),
-              ] else
-                FilledButton.icon(
-                  onPressed: _busy ? null : _installTranslation,
-                  icon: const Icon(Icons.download_rounded),
-                  label: const Text('Install translation model'),
-                ),
-            ],
-            if (_translationSetupError != null)
-              Text(
-                _translationSetupError!,
-                style: TextStyle(color: colors.error),
-              ),
-            if (_translation.translating) ...[
-              const LinearProgressIndicator(),
-              const SizedBox(height: 8),
-              Text(
-                'Translating to ${_translation.target.label} on this device…',
-              ),
-            ] else if (_translation.translated.isNotEmpty) ...[
-              SelectableText(
-                _translation.translated,
-                style: const TextStyle(fontSize: 17, height: 1.5),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Review meaning, names and numbers. This model can omit or mistranslate details.',
-                style: TextStyle(fontSize: 12, color: Color(0xFF71807A)),
-              ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                children: [
-                  FilledButton.tonalIcon(
-                    onPressed: _translation.playing
-                        ? _translation.stopPlayback
-                        : _translation.play,
-                    icon: Icon(
-                      _translation.playing
-                          ? Icons.stop_rounded
-                          : Icons.volume_up_outlined,
-                    ),
-                    label: Text(
-                      _translation.playing
-                          ? 'Stop playback'
-                          : 'Play translation',
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: 'Copy translation',
-                    onPressed: () => Clipboard.setData(
-                      ClipboardData(text: _translation.translated),
-                    ),
-                    icon: const Icon(Icons.copy_rounded),
-                  ),
-                ],
-              ),
-            ] else if (_translationInstalled)
-              const Text(
-                'Finish a recording or enter source text to translate.',
-              ),
-            if (_translation.error != null) ...[
-              const SizedBox(height: 8),
-              Text(_translation.error!, style: TextStyle(color: colors.error)),
-            ],
-            if (_translation.transcript.isNotEmpty)
-              TextButton.icon(
-                onPressed:
-                    _busy || _translation.translating || !_translationInstalled
-                    ? null
-                    : _translate,
-                icon: const Icon(Icons.translate_rounded),
-                label: Text(
-                  _translation.error == null
-                      ? 'Translate source text'
-                      : 'Retry translation',
-                ),
-              ),
-            if (_translation.voiceNotice != null)
-              Text(_translation.voiceNotice!),
-            const SizedBox(height: 6),
-            const Text(
-              'Playback uses an installed offline voice for the target language when available.',
-              style: TextStyle(fontSize: 12, color: Color(0xFF71807A)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildPrivacyNote(ColorScheme colors) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1352,121 +1489,13 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
           child: Text(
             'Speech recognition and translation run on this device after model setup. Audio and text are not sent to a server.',
             style: TextStyle(
-              color: Color(0xFF71807A),
+              color: Color(0xFF626262),
               fontSize: 12,
               height: 1.4,
             ),
           ),
         ),
       ],
-    );
-  }
-}
-
-class _LanguageTile extends StatelessWidget {
-  const _LanguageTile({
-    required this.label,
-    required this.language,
-    required this.code,
-  });
-
-  final String label;
-  final String language;
-  final String code;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 2),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              color: Color(0xFF8C9892),
-              fontSize: 10,
-              letterSpacing: 1.2,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            language,
-            style: const TextStyle(
-              color: Color(0xFF203631),
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            code,
-            style: const TextStyle(
-              color: Color(0xFF829089),
-              fontSize: 10,
-              letterSpacing: 0.6,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({
-    required this.icon,
-    required this.label,
-    required this.background,
-    required this.foreground,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color background;
-  final Color foreground;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(30),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 13, color: foreground),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: TextStyle(
-              color: foreground,
-              fontSize: 9,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.6,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PulseDot extends StatelessWidget {
-  const _PulseDot();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 9,
-      height: 9,
-      decoration: const BoxDecoration(
-        color: Color(0xFFFF8879),
-        shape: BoxShape.circle,
-      ),
     );
   }
 }

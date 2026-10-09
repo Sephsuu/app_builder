@@ -6,6 +6,7 @@ import 'package:whisper_cpp_flutter_plus/whisper_cpp_flutter_plus.dart';
 import 'package:offline_speech_translator/features/speech/data/local_whisper_speech_service.dart';
 import 'package:offline_speech_translator/features/speech/presentation/speech_home_screen.dart';
 import 'package:offline_speech_translator/features/translation/domain/translation.dart';
+import 'package:offline_speech_translator/theme/salin_theme.dart';
 import 'translation_controller_test.dart' show FakeTranslator, FakeVoice;
 
 class ScreenSpeech extends LocalWhisperSpeechService {
@@ -67,6 +68,23 @@ Future<void> reveal(
   await tester.pumpAndSettle();
 }
 
+Future<void> showResult(WidgetTester tester) async {
+  await reveal(tester, find.text('Translate'), delta: -250);
+  await tester.tap(find.text('Translate'));
+  await tester.pumpAndSettle();
+  expect(find.text('Choose Translation'), findsOneWidget);
+  await reveal(tester, find.text('Translate'));
+  await tester.tap(find.text('Translate'));
+  await tester.pump();
+}
+
+Future<void> showSource(WidgetTester tester, String language) async {
+  final source = find.text('Source · $language');
+  await reveal(tester, source);
+  await tester.tap(source);
+  await tester.pumpAndSettle();
+}
+
 void main() {
   late ScreenSpeech speech;
   late FakeTranslator translator;
@@ -83,6 +101,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(
       MaterialApp(
+        theme: SalinTheme.light,
         home: SpeechHomeScreen(
           speech: speech,
           translator: translator,
@@ -163,11 +182,14 @@ void main() {
     expect(speech.releases, 1);
     translator.requests.single.result.complete('Asa si Maria?');
     await tester.pumpAndSettle();
+    await showResult(tester);
+    expect(translator.requests, hasLength(1));
     final play = find.text('Play translation');
     await reveal(tester, play);
     await tester.tap(play);
     await tester.pump();
     expect(voice.spoken.single, ('Asa si Maria?', TranslationLanguage.cebuano));
+    await showSource(tester, 'Tagalog');
     expect(find.text('Nasaan si Maria?'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -177,15 +199,19 @@ void main() {
     (tester) async {
       speech.baseInstalled = true;
       await open(tester);
+      await tester.tap(find.byTooltip('Speech and offline settings'));
+      await tester.pumpAndSettle();
       final choice = find.widgetWithText(
         SwitchListTile,
         'Refine with Whisper Base',
       );
-      expect(tester.widget<SwitchListTile>(choice).value, isTrue);
       await reveal(tester, choice);
+      expect(tester.widget<SwitchListTile>(choice).value, isTrue);
       await tester.tap(choice);
       await tester.pumpAndSettle();
       expect(tester.widget<SwitchListTile>(choice).value, isFalse);
+      await tester.tap(find.byTooltip('Close settings'));
+      await tester.pumpAndSettle();
       await reveal(tester, find.byIcon(Icons.mic_none_rounded));
       await tester.tap(find.byIcon(Icons.mic_none_rounded));
       await tester.pump();
@@ -199,20 +225,26 @@ void main() {
     await open(tester);
     await tester.tap(find.byTooltip('Swap languages and clear text'));
     await tester.pumpAndSettle();
-    expect(find.byIcon(Icons.mic_none_rounded), findsNothing);
+    expect(
+      tester
+          .widget<IconButton>(
+            find.widgetWithIcon(IconButton, Icons.mic_none_rounded),
+          )
+          .onPressed,
+      isNull,
+    );
     await tester.tap(find.text('Enter Bisaya text'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'Asa si Maria sa Mayo 12?');
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
-    await reveal(tester, find.text('Translate source text'));
-    await tester.tap(find.text('Translate source text'));
-    await tester.pump();
+    await showResult(tester);
     expect(translator.requests.single.source, TranslationLanguage.cebuano);
     translator.requests.single.result.completeError(
       StateError('temporary failure'),
     );
     await tester.pumpAndSettle();
+    await showSource(tester, 'Bisaya');
     expect(find.text('Asa si Maria sa Mayo 12?'), findsOneWidget);
     await reveal(tester, find.text('Retry translation'));
     await tester.tap(find.text('Retry translation'));
@@ -230,9 +262,7 @@ void main() {
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
     expect(find.text('Nasaan si Maria sa Mayo 12?'), findsNothing);
-    await reveal(tester, find.text('Translate source text'));
-    await tester.tap(find.text('Translate source text'));
-    await tester.pump();
+    await showResult(tester);
     expect(translator.requests.last.text, 'Dili ko moadto.');
     translator.requests.last.result.complete('Hindi ako pupunta.');
     await tester.pumpAndSettle();

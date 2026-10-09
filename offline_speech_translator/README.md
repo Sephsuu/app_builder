@@ -1,4 +1,4 @@
-# Sulti — local Tagalog / Cebuano translator
+# Salin — local Tagalog / Cebuano translator
 
 Android-first Flutter research/demo application. Tagalog speech is recognized
 with the existing Whisper Tiny/Base implementation. NLLB translates finalized or
@@ -13,6 +13,8 @@ by default; no recognition improvement from it is claimed.
 
 See the [pre-change audit](evaluation/implementation-audit.md) and
 [verification and limitations](evaluation/implementation-results.md).
+The [Salin UI report](evaluation/salin-ui-implementation.md) includes rendered
+screenshots, asset provenance, responsive checks and device-verification limits.
 
 ## Run
 
@@ -21,7 +23,8 @@ flutter pub get
 flutter run -d <ANDROID_DEVICE_ID>
 ```
 
-1. Install the speech model (~32 MB Tiny; ~63 MB Base). Verified installed Base
+1. Tap **Start**, then open **Speech and offline settings** (the sliders icon).
+   Install the speech model (~32 MB Tiny; ~63 MB Base). Verified installed Base
    is selected for final Tagalog recognition by default; Tiny remains available.
    For Cebuano voice, use **Import Cebuano speech model** and select the converted
    `ggml-cebuano-small-q5_1.bin` (190,085,487 bytes). The app verifies its SHA-256.
@@ -39,7 +42,11 @@ flutter run -d <ANDROID_DEVICE_ID>
    For experimental mixed speech with a Tagalog source, enable **Cebuano / mixed
    speech**. Choose the dominant source language for translation.
 5. Alternatively use **Enter Tagalog/Bisaya text**. Edit the source and choose
-   **Translate source text**. A failure preserves the source and exposes Retry.
+   **Translate**, review the target language, then tap **Translate** to open the
+   result. Finished speech reuses its automatic translation; typed or edited
+   text starts translation here. A failure preserves the source and exposes
+   **Retry translation**. Copy/edit controls remain available; source review
+   is expandable on the result screen.
 6. **Play translation** selects an installed offline target-language voice.
    If none exists, the translation stays visible and the app explains the limit.
 7. After setup, repeat with airplane mode enabled to verify the installed

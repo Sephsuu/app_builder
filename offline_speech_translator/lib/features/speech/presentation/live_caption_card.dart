@@ -49,7 +49,7 @@ class _LiveCaptionCardState extends State<LiveCaptionCard> {
           widget.finalizing
               ? 'Reviewing the full recording…'
               : 'Live preview · words may change',
-          style: const TextStyle(fontSize: 12, color: Color(0xFF71807A)),
+          style: const TextStyle(fontSize: 12, color: Color(0xFF626262)),
         ),
         const SizedBox(height: 10),
         SizedBox(
@@ -75,7 +75,7 @@ class _LiveCaptionCardState extends State<LiveCaptionCard> {
                       style: TextStyle(
                         fontSize: 20,
                         height: 1.5,
-                        color: Color(0xFF71807A),
+                        color: Color(0xFF626262),
                       ),
                     )
                   : Text.rich(
@@ -85,7 +85,7 @@ class _LiveCaptionCardState extends State<LiveCaptionCard> {
                           TextSpan(
                             text: snapshot.provisional,
                             style: const TextStyle(
-                              color: Color(0xFF568E83),
+                              color: Color(0xFF626262),
                               fontStyle: FontStyle.italic,
                             ),
                           ),
@@ -95,7 +95,7 @@ class _LiveCaptionCardState extends State<LiveCaptionCard> {
                         fontSize: 24,
                         height: 1.5,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF183C38),
+                        color: Color(0xFF000000),
                       ),
                     ),
             ),
@@ -115,7 +115,7 @@ class _LiveCaptionCardState extends State<LiveCaptionCard> {
         if (snapshot.processingTime > Duration.zero)
           Text(
             'Last preview: ${(snapshot.processingTime.inMilliseconds / 1000).toStringAsFixed(1)}s processing',
-            style: const TextStyle(fontSize: 11, color: Color(0xFF71807A)),
+            style: const TextStyle(fontSize: 11, color: Color(0xFF626262)),
           ),
       ],
     );
