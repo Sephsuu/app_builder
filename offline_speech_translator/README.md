@@ -6,14 +6,16 @@ edited text **in both directions**, entirely on-device after installation.
 Playback uses an installed offline voice for the exact target language.
 
 **Current limits:** an optional, separately trained Cebuano Small checkpoint now
-supports Cebuano voice after Finish. It is slower and still makes errors. Its
+supports Cebuano voice after Stop. It is slower and still makes errors. Its
 training focuses on Cebuano–English; mixed Tagalog–Cebuano is experimental and
 not validated. Offline voices depend on the device. Noise suppression stays off
 by default; no recognition improvement from it is claimed.
 
 See the [pre-change audit](evaluation/implementation-audit.md) and
 [verification and limitations](evaluation/implementation-results.md).
-The [Salin UI report](evaluation/salin-ui-implementation.md) includes rendered
+The [conversation UI report](evaluation/salin-conversation-implementation.md)
+documents onboarding, microphone levels, session history and Android checks.
+The earlier [Salin UI report](evaluation/salin-ui-implementation.md) includes rendered
 screenshots, asset provenance, responsive checks and device-verification limits.
 
 ## Run
@@ -23,34 +25,32 @@ flutter pub get
 flutter run -d <ANDROID_DEVICE_ID>
 ```
 
-1. Tap **Start**, then open **Speech and offline settings** (the sliders icon).
-   Install the speech model (~32 MB Tiny; ~63 MB Base). Verified installed Base
-   is selected for final Tagalog recognition by default; Tiny remains available.
-   For Cebuano voice, use **Import Cebuano speech model** and select the converted
-   `ggml-cebuano-small-q5_1.bin` (190,085,487 bytes). The app verifies its SHA-256.
-   On the tested Galaxy A16 it is already installed, with a reinstall copy in
-   `Download/Sulti/`. Conversion instructions are in the report.
-2. Install the translation model (~900 MB). This is an explicit, resumable,
-   checksum-verified download, separate from speech setup.
-3. Choose Tagalog or Bisaya as the source. The target is always the other
-   language. The swap control clears the old text and stops its translation or
-   playback. Direction controls are disabled during recording/final recognition.
-4. For the selected source language, record and Finish. Only the final transcript is translated.
-   Live captions never trigger translation. English and auto-detect remain
-   available for recognition only. Cebuano uses the trained Small model with
-   five-beam decoding after Finish; live captions are disabled for this model.
-   For experimental mixed speech with a Tagalog source, enable **Cebuano / mixed
-   speech**. Choose the dominant source language for translation.
-5. Alternatively use **Enter Tagalog/Bisaya text**. Edit the source and choose
-   **Translate**, review the target language, then tap **Translate** to open the
-   result. Finished speech reuses its automatic translation; typed or edited
-   text starts translation here. A failure preserves the source and exposes
-   **Retry translation**. Copy/edit controls remain available; source review
-   is expandable on the result screen.
-6. **Play translation** selects an installed offline target-language voice.
-   If none exists, the translation stays visible and the app explains the limit.
-7. After setup, repeat with airplane mode enabled to verify the installed
-   resources on your actual phone. No inference API or server is used.
+1. On first launch, tap **Get started** and try the three-step, clearly labeled
+   example. Tap **Start Translating** to save completion locally. Later launches
+   open the conversation screen directly.
+2. Open **Speech and offline settings** (the sliders icon). Install the speech
+   model (~32 MB Tiny; ~63 MB Base) and translation model (~900 MB). Downloads
+   remain explicit, resumable and checksum-verified. Installed Base is selected
+   for final Tagalog recognition by default; Tiny remains available. For Cebuano
+   voice, import the verified `ggml-cebuano-small-q5_1.bin` checkpoint.
+3. Choose **From** and **To**, or swap speakers. Tagalog and Bisaya are the
+   supported translation pair. Direction changes clear the current draft while
+   retaining completed conversation turns. Controls are disabled during capture
+   and final recognition.
+4. Tap the microphone, speak, then tap **Stop**. The waveform uses actual captured
+   PCM levels. Final speech is transcribed and translated on the same screen;
+   provisional live captions never trigger translation. **Cancel** discards the
+   recording. Cebuano uses the trained Small model with live captions disabled.
+   English/auto recognition and experimental mixed speech remain in settings.
+5. Alternatively enter or edit source text and tap **Translate source text**.
+   Original and translated text stay visible together. Failures preserve the
+   source and expose retry. Copy, edit and offline playback remain available.
+6. Tap **Play translation** to use an installed voice for the exact target
+   language. Completed turns stay in scrollable history for the current session,
+   with their own playback and copy controls. **Translate Again** immediately
+   starts another recording on this screen.
+7. After setup, repeat with airplane mode enabled on your actual phone. No
+   inference API or server is used. Models and voices still require installation.
 
 ## Compatibility and dependencies
 
@@ -59,7 +59,7 @@ flutter run -d <ANDROID_DEVICE_ID>
   model URLs, SHA-256 hashes and final decoding settings are unchanged.
 - Added Android `com.microsoft.onnxruntime:onnxruntime-android:1.23.2` (MIT), CPU
   backend, and SentencePiece 0.2.0 (Apache-2.0), built through CMake with a pinned
-  archive SHA-256. No new Flutter runtime dependency was added.
+  archive SHA-256. The onboarding UI adds `shared_preferences` for local completion persistence.
 - NLLB is enabled only in a **64-bit Android process**. Its weights occupy
   899,478,308 bytes; installation also needs temporary space. Actual native
   working memory exceeds file size; this is a large model for lower-memory
@@ -116,7 +116,7 @@ model/license before changing the intended use.
 
 Default capture is unchanged: VOICE_RECOGNITION, mono float32 PCM at 16 kHz,
 100 ms requested chunks, no added gain, VAD, resampling or silence trimming.
-The five-minute recording cap, serial live preview, Finish/Cancel, and optional
+The five-minute recording cap, serial live preview, Stop/Cancel, and optional
 Base final refinement remain. Exact silence and malformed PCM are rejected;
 quiet speech is retained.
 The prior [live-caption verification](benchmarks/adaptive-live-captions.md)

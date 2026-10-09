@@ -4,10 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../theme/salin_theme.dart';
-import 'speech_home_screen.dart';
 
 class SalinLandingScreen extends StatelessWidget {
-  const SalinLandingScreen({super.key});
+  const SalinLandingScreen({super.key, required this.onStart});
+  final VoidCallback onStart;
 
   @override
   Widget build(BuildContext context) {
@@ -21,7 +21,7 @@ class SalinLandingScreen extends StatelessWidget {
             final textScale = MediaQuery.textScalerOf(context).scale(16) / 16;
             final height = math.max(
               constraints.maxHeight,
-              620.0 + (textScale - 1).clamp(0, 3) * 140,
+              700.0 + (textScale - 1).clamp(0, 3) * 140,
             );
             final artworkHeight = math.min(height * .27, width * .64);
             return SingleChildScrollView(
@@ -53,18 +53,23 @@ class SalinLandingScreen extends StatelessWidget {
                               ),
                         ),
                       ),
+                      const SizedBox(height: 16),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 32),
+                        child: Text(
+                          'Offline voice translation for\nTagalog and Bisaya conversations.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 14, height: 1.5),
+                        ),
+                      ),
                       const Spacer(flex: 3),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 32),
                         child: SizedBox(
                           width: double.infinity,
                           child: FilledButton(
-                            onPressed: () => Navigator.of(context).push(
-                              MaterialPageRoute<void>(
-                                builder: (_) => const SpeechHomeScreen(),
-                              ),
-                            ),
-                            child: const Text('Start'),
+                            onPressed: onStart,
+                            child: const Text('Get started'),
                           ),
                         ),
                       ),

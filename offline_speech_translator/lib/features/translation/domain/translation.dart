@@ -27,3 +27,21 @@ abstract interface class SpeechOutput {
   Future<void> speak(String text, TranslationLanguage language);
   Future<void> stop();
 }
+
+/// A completed turn is immutable; changing speakers never reinterprets it.
+class ConversationEntry {
+  const ConversationEntry({
+    required this.id,
+    required this.source,
+    required this.target,
+    required this.original,
+    required this.translated,
+    required this.createdAt,
+  });
+  final int id;
+  final TranslationLanguage source;
+  final TranslationLanguage target;
+  final String original;
+  final String translated;
+  final DateTime createdAt;
+}

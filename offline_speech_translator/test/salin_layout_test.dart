@@ -78,11 +78,11 @@ void main() {
           });
         }
 
-        await tester.pumpWidget(app(const SalinLandingScreen()));
+        await tester.pumpWidget(app(SalinLandingScreen(onStart: () {})));
         await tester.pumpAndSettle();
         await screenshot('landing');
-        await reveal(tester, find.text('Start'));
-        expect(find.text('Start').hitTestable(), findsOneWidget);
+        await reveal(tester, find.text('Get started'));
+        expect(find.text('Get started').hitTestable(), findsOneWidget);
 
         final translator = FakeTranslator();
         final voice = FakeVoice();
@@ -107,17 +107,13 @@ void main() {
         await tester.tap(find.text('Save'));
         await tester.pumpAndSettle();
         await tester.drag(
-          find.byType(SingleChildScrollView).first,
+          find.byType(CustomScrollView).first,
           const Offset(0, 1200),
         );
         await tester.pumpAndSettle();
         await screenshot('capture-text');
-        await reveal(tester, find.text('Translate'));
-        await tester.tap(find.text('Translate'));
-        await tester.pumpAndSettle();
-        await screenshot('languages');
-        await reveal(tester, find.text('Translate'));
-        await tester.tap(find.text('Translate'));
+        await reveal(tester, find.text('Translate source text'));
+        await tester.tap(find.text('Translate source text'));
         await tester.pump();
         expect(translator.requests, hasLength(1));
         translator.requests.single.result.complete(
@@ -128,11 +124,9 @@ void main() {
         await reveal(tester, find.text('Translate Again'));
         await tester.tap(find.text('Translate Again'));
         await tester.pumpAndSettle();
-        expect(
-          find.text('Nakaon ka na?\nAsa ka paingon?\nGihigugma tika.'),
-          findsNothing,
-        );
-        expect(find.byTooltip('Start recording'), findsOneWidget);
+        expect(find.text('Stop'), findsOneWidget);
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
         await tester.tap(find.byTooltip('Speech and offline settings'));
         await tester.pumpAndSettle();
         await screenshot('settings');
@@ -142,47 +136,48 @@ void main() {
     );
   }
 
-  testWidgets('large text stays usable and Done clears pending translation', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(320, 568);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    final translator = FakeTranslator();
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: SalinTheme.light,
-        builder: (context, child) => MediaQuery(
-          data: MediaQuery.of(
-            context,
-          ).copyWith(textScaler: const TextScaler.linear(2)),
-          child: child!,
+  testWidgets(
+    'large text stays usable and a new recording cancels pending translation',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 568);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final translator = FakeTranslator();
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: SalinTheme.light,
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: const TextScaler.linear(2)),
+            child: child!,
+          ),
+          home: SpeechHomeScreen(
+            speech: ScreenSpeech(),
+            translator: translator,
+            voice: FakeVoice(),
+          ),
         ),
-        home: SpeechHomeScreen(
-          speech: ScreenSpeech(),
-          translator: translator,
-          voice: FakeVoice(),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-    await reveal(tester, find.text('Enter Tagalog text'));
-    await tester.tap(find.text('Enter Tagalog text'));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField), 'Salamat.');
-    await tester.tap(find.text('Save'));
-    await tester.pumpAndSettle();
-    await showResult(tester);
-    // The ongoing translation indicator must not prevent reaching Done.
-    await tester.ensureVisible(find.text('Done'));
-    await tester.pump();
-    await tester.tap(find.text('Done'));
-    await tester.pumpAndSettle();
-    translator.requests.single.result.complete('Stale result');
-    await tester.pumpAndSettle();
-    expect(find.text('Stale result'), findsNothing);
-    expect(find.byTooltip('Start recording'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+      );
+      await tester.pumpAndSettle();
+      await reveal(tester, find.text('Enter Tagalog text'));
+      await tester.tap(find.text('Enter Tagalog text'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'Salamat.');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      await showResult(tester);
+      // Starting the next turn cancels the unfinished translation.
+      await tester.ensureVisible(find.byTooltip('Start recording'));
+      await tester.pump();
+      await tester.tap(find.byTooltip('Start recording'));
+      await tester.pumpAndSettle();
+      translator.requests.single.result.complete('Stale result');
+      await tester.pumpAndSettle();
+      expect(find.text('Stale result'), findsNothing);
+      expect(find.text('Stop'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

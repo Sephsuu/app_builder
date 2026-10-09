@@ -16,6 +16,9 @@ class TranslationController extends ChangeNotifier {
   bool translating = false;
   bool playing = false;
   bool recording = false;
+  final List<ConversationEntry> _history = [];
+  List<ConversationEntry> get history => List.unmodifiable(_history);
+  int? playingEntryId;
   int _generation = 0;
   int _playbackGeneration = 0;
   bool _disposed = false;
@@ -29,6 +32,7 @@ class TranslationController extends ChangeNotifier {
     voiceNotice = null;
     translating = false;
     playing = false;
+    playingEntryId = null;
     _settling = Future.wait([translator.cancel(), voice.stop()]).then((_) {});
     // Keep asynchronous cancellation failures observed even when no new operation
     // is started. A new recording still awaits the original failing future.
@@ -105,6 +109,16 @@ class TranslationController extends ChangeNotifier {
         throw StateError('No translation was generated.');
       }
       translated = result.trim();
+      _history.add(
+        ConversationEntry(
+          id: _generation,
+          source: from,
+          target: to,
+          original: input,
+          translated: translated,
+          createdAt: DateTime.now(),
+        ),
+      );
     } catch (failure) {
       if (_current(generation)) error = '$failure';
     } finally {
@@ -115,19 +129,16 @@ class TranslationController extends ChangeNotifier {
     }
   }
 
-  Future<void> play() async {
-    if (translated.isEmpty ||
-        translating ||
-        recording ||
-        playing ||
-        _disposed) {
+  Future<void> play({ConversationEntry? entry}) async {
+    final output = entry?.translated ?? translated;
+    final language = entry?.target ?? target;
+    if (output.isEmpty || translating || recording || playing || _disposed) {
       return;
     }
     final generation = _generation;
     final playback = ++_playbackGeneration;
-    final output = translated;
-    final language = target;
     playing = true;
+    playingEntryId = entry?.id;
     voiceNotice = null;
     notifyListeners();
     try {
@@ -146,6 +157,7 @@ class TranslationController extends ChangeNotifier {
     } finally {
       if (_current(generation) && playback == _playbackGeneration) {
         playing = false;
+        playingEntryId = null;
         notifyListeners();
       }
     }
@@ -154,6 +166,7 @@ class TranslationController extends ChangeNotifier {
   Future<void> stopPlayback() async {
     final playback = ++_playbackGeneration;
     playing = false;
+    playingEntryId = null;
     if (!_disposed) notifyListeners();
     try {
       await voice.stop();

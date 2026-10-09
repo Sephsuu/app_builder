@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:whisper_cpp_flutter_plus/whisper_cpp_flutter_plus.dart';
 
 import '../domain/audio_validation.dart';
+import '../domain/audio_level.dart';
 import '../application/live_recognition.dart';
 import 'speech_capture.dart';
 
@@ -24,6 +25,8 @@ class LocalWhisperSpeechService {
   static const maxRecordingSeconds = 300;
   final _liveUpdates = StreamController<LiveRecognitionSnapshot>.broadcast();
   final _recordingEnded = StreamController<void>.broadcast();
+  final _audioLevels = StreamController<double>.broadcast();
+  Stream<double> get audioLevels => _audioLevels.stream;
   Stream<LiveRecognitionSnapshot> get liveUpdates => _liveUpdates.stream;
   Stream<void> get recordingEnded => _recordingEnded.stream;
   LiveRecognition? _preview;
@@ -298,6 +301,7 @@ class LocalWhisperSpeechService {
                 : Float32List.sublistView(chunk.samples, 0, remaining);
             _recordedChunks.add(samples);
             diagnostics.add(samples);
+            _audioLevels.add(audioRms(samples));
             _recordedSampleCount += samples.length;
             _preview?.add(RecordingChunk(samples, 16000));
             if (_recordedSampleCount >= maxRecordingSeconds * 16000) {
@@ -484,6 +488,7 @@ class LocalWhisperSpeechService {
   }
 
   void _clearRecording() {
+    if (!_audioLevels.isClosed) _audioLevels.add(0);
     _recordedChunks.clear();
     _recordedSampleCount = 0;
     _audioError = null;
@@ -498,6 +503,7 @@ class LocalWhisperSpeechService {
     await _recognitionProgress.close();
     await _liveUpdates.close();
     await _recordingEnded.close();
+    await _audioLevels.close();
     _models.close();
   }
 }

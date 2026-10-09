@@ -7,6 +7,7 @@ import 'package:offline_speech_translator/features/speech/data/local_whisper_spe
 import 'package:offline_speech_translator/features/speech/presentation/speech_home_screen.dart';
 import 'package:offline_speech_translator/features/translation/domain/translation.dart';
 import 'package:offline_speech_translator/theme/salin_theme.dart';
+import 'package:offline_speech_translator/features/speech/presentation/conversation_widgets.dart';
 import 'translation_controller_test.dart' show FakeTranslator, FakeVoice;
 
 class ScreenSpeech extends LocalWhisperSpeechService {
@@ -69,20 +70,17 @@ Future<void> reveal(
 }
 
 Future<void> showResult(WidgetTester tester) async {
-  await reveal(tester, find.text('Translate'), delta: -250);
-  await tester.tap(find.text('Translate'));
-  await tester.pumpAndSettle();
-  expect(find.text('Choose Translation'), findsOneWidget);
-  await reveal(tester, find.text('Translate'));
-  await tester.tap(find.text('Translate'));
+  final panel = find.byWidgetPredicate(
+    (widget) => widget is TranslationTextPanel && widget.accent,
+  );
+  if (tester.widget<TranslationTextPanel>(panel).text.isNotEmpty) return;
+  await reveal(tester, find.text('Translate source text'));
+  await tester.tap(find.text('Translate source text'));
   await tester.pump();
 }
 
 Future<void> showSource(WidgetTester tester, String language) async {
-  final source = find.text('Source · $language');
-  await reveal(tester, source);
-  await tester.tap(source);
-  await tester.pumpAndSettle();
+  await reveal(tester, find.text('Original · $language'), delta: -250);
 }
 
 void main() {
@@ -127,8 +125,8 @@ void main() {
       expect(speech.capturedLanguage, 'ceb');
       expect(speech.capturedCebuano, isTrue);
       expect(translator.requests, isEmpty);
-      await reveal(tester, find.text('Finish'));
-      await tester.tap(find.text('Finish'));
+      await reveal(tester, find.text('Stop'));
+      await tester.tap(find.text('Stop'));
       await tester.pump();
       speech.result.complete(
         const WhisperResult(
@@ -161,7 +159,7 @@ void main() {
     expect(speech.capturedLanguage, 'tl');
     expect(speech.capturedNoiseSetting, isFalse);
     expect(translator.requests, isEmpty);
-    final finish = find.text('Finish');
+    final finish = find.text('Stop');
     await reveal(tester, finish);
     await tester.tap(finish);
     await tester.pump();
@@ -190,7 +188,7 @@ void main() {
     await tester.pump();
     expect(voice.spoken.single, ('Asa si Maria?', TranslationLanguage.cebuano));
     await showSource(tester, 'Tagalog');
-    expect(find.text('Nasaan si Maria?'), findsOneWidget);
+    expect(find.text('Nasaan si Maria?'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 
@@ -245,7 +243,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     await showSource(tester, 'Bisaya');
-    expect(find.text('Asa si Maria sa Mayo 12?'), findsOneWidget);
+    expect(find.text('Asa si Maria sa Mayo 12?'), findsWidgets);
     await reveal(tester, find.text('Retry translation'));
     await tester.tap(find.text('Retry translation'));
     await tester.pump();
@@ -261,7 +259,17 @@ void main() {
     await tester.enterText(find.byType(TextField), 'Dili ko moadto.');
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
-    expect(find.text('Nasaan si Maria sa Mayo 12?'), findsNothing);
+    expect(
+      tester
+          .widget<TranslationTextPanel>(
+            find.byWidgetPredicate(
+              (w) => w is TranslationTextPanel && w.accent,
+            ),
+          )
+          .text,
+      isEmpty,
+    );
+    // The previous completed turn remains in conversation history.
     await showResult(tester);
     expect(translator.requests.last.text, 'Dili ko moadto.');
     translator.requests.last.result.complete('Hindi ako pupunta.');
