@@ -282,6 +282,16 @@
       "reference": "Kumain ka na ba?\nSaan ka pupunta?\nMahal kita.",
       "reference_status": "AI-drafted; pending independent fluent-speaker review",
       "required_names": []
+    },
+    {
+      "id": "travel-later-unpunctuated-tgl",
+      "category": "user_report_lowercase_speech",
+      "source": "tgl_Latn",
+      "text": "saan tayo pupunta mamaya",
+      "reference": "Asa ta moadto unya?",
+      "reference_status": "AI-drafted; pending independent fluent-speaker review",
+      "required_names": [],
+      "reported_incorrect_output": "atong paglawak"
     }
   ]
 }

@@ -1,0 +1,23 @@
+{
+  "scope": "Actual Android inference; not a human-reviewed quality score",
+  "complete": false,
+  "results": [
+    {
+      "input": "saan tayo pupunta mamaya",
+      "output": "asa man kita sa ulahi",
+      "elapsed_ms": 73505
+    },
+    {
+      "input": "Saan tayo pupunta mamaya",
+      "output": "Asa kita moadto sa ulahi",
+      "elapsed_ms": 69799
+    }
+  ],
+  "device_model": "25057RN09G",
+  "abi": "arm64-v8a",
+  "runtime": "onnxruntime-android 1.23.2 CPU",
+  "revision": "261c31d1a5732c67cdd16d80e8d6088507c7ccea",
+  "input_mode": "Raw native inputs before the casing change; the second input is the exact input now prepared by the service.",
+  "stop_reason": "Probe deliberately stopped after the required lowercase/capitalized pair completed to restore the normal app. Other probe cases are not claimed as run.",
+  "timing_note": "Screen was asleep; timings are observations, not a controlled performance comparison."
+}

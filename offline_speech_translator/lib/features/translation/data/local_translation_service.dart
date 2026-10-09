@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart';
 import '../domain/translation.dart';
+import 'translation_input.dart';
 
 class LocalTranslationService implements TranslationService {
   static const channel = MethodChannel('sulti/offline_translation');
@@ -24,7 +25,7 @@ class LocalTranslationService implements TranslationService {
     if (text.trim().isEmpty) throw ArgumentError('Enter text to translate.');
     try {
       return await channel.invokeMethod<String>('translate', {
-            'text': text,
+            'text': prepareTranslationInput(text, source),
             'source': source.modelCode,
             'target': target.modelCode,
           }) ??

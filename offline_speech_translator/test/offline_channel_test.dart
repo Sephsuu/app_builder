@@ -74,6 +74,36 @@ void main() {
   );
 
   test(
+    'prepares Tagalog casing at the native boundary',
+    () async {
+      final calls = <MethodCall>[];
+      messenger.setMockMethodCallHandler(LocalTranslationService.channel, (
+        call,
+      ) async {
+        calls.add(call);
+        return 'Asa kita moadto sa ulahi';
+      });
+      addTearDown(
+        () => messenger.setMockMethodCallHandler(
+          LocalTranslationService.channel,
+          null,
+        ),
+      );
+      const original = 'saan tayo pupunta mamaya';
+      await LocalTranslationService().translate(
+        original,
+        TranslationLanguage.tagalog,
+        TranslationLanguage.cebuano,
+      );
+      expect(calls.single.arguments, {
+        'text': 'Saan tayo pupunta mamaya',
+        'source': 'tgl_Latn',
+        'target': 'ceb_Latn',
+      });
+    },
+  );
+
+  test(
     'playback selects only the target voice code and translation text',
     () async {
       const channel = MethodChannel('sulti/offline_voice');

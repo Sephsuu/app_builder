@@ -1,0 +1,79 @@
+{
+  "scope": "Actual host ONNX inference using unchanged greedy decoder; diagnostic examples only, no human-reviewed accuracy score. Six lowercase inputs compared with sentence-cased variants. Timings are exploratory, not controlled benchmarks.",
+  "revision": "261c31d1a5732c67cdd16d80e8d6088507c7ccea",
+  "runtime": "onnxruntime 1.23.2 CPU",
+  "results": [
+    {
+      "input": "saan tayo pupunta mamaya",
+      "prepared_input": "Saan tayo pupunta mamaya",
+      "baseline": {
+        "output": "asa man kita sa ulahi",
+        "seconds": 6.010302957991371
+      },
+      "candidate": {
+        "output": "Asa kita moadto sa ulahi",
+        "seconds": 2.8812770830118097
+      }
+    },
+    {
+      "input": "saan tayo pupunta mamaya?",
+      "prepared_input": "Saan tayo pupunta mamaya?",
+      "baseline": {
+        "output": "asa man kita moadto sa ulahi?",
+        "seconds": 3.6554076250176877
+      },
+      "candidate": {
+        "output": "Asa kita moadto sa ulahi?",
+        "seconds": 3.2579604590137023
+      }
+    },
+    {
+      "input": "pakibigay kay Juan ang 3 libro bukas",
+      "prepared_input": "Pakibigay kay Juan ang 3 libro bukas",
+      "baseline": {
+        "output": "ihatag kang Juan ang 3 ka libro ugma",
+        "seconds": 4.448023957986152
+      },
+      "candidate": {
+        "output": "Ihatag kang Juan ang 3 ka libro ugma",
+        "seconds": 4.650090167007875
+      }
+    },
+    {
+      "input": "hindi ako pupunta sa Mayo 12",
+      "prepared_input": "Hindi ako pupunta sa Mayo 12",
+      "baseline": {
+        "output": "Dili ako moadto sa Mayo 12",
+        "seconds": 3.4671619159926195
+      },
+      "candidate": {
+        "output": "Dili ako moadto sa Mayo 12",
+        "seconds": 3.307637416990474
+      }
+    },
+    {
+      "input": "kumain ka na ba",
+      "prepared_input": "Kumain ka na ba",
+      "baseline": {
+        "output": "nakaon ka na ba?",
+        "seconds": 3.356711833010195
+      },
+      "candidate": {
+        "output": "Nakaon ka na ba?",
+        "seconds": 3.315676958009135
+      }
+    },
+    {
+      "input": "kumakain pa ako pero kakain ulit mamaya",
+      "prepared_input": "Kumakain pa ako pero kakain ulit mamaya",
+      "baseline": {
+        "output": "Ako na lang mag-inom pero makaon na ako pag-usab",
+        "seconds": 6.5053757920104545
+      },
+      "candidate": {
+        "output": "Ako na lang mag-andam ug pagkaon apan makaon na ako pag-usab",
+        "seconds": 7.228514582995558
+      }
+    }
+  ]
+}
