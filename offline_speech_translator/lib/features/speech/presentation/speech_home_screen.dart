@@ -7,6 +7,8 @@ import '../application/live_recognition.dart';
 import 'live_caption_card.dart';
 import 'conversation_widgets.dart';
 import '../domain/audio_level.dart';
+import '../domain/tagalog_transcript_review.dart';
+import 'transcript_review_card.dart';
 import '../../../theme/salin_theme.dart';
 import '../../translation/application/translation_controller.dart';
 import '../../translation/data/local_translation_service.dart';
@@ -25,6 +27,21 @@ class SpeechHomeScreen extends StatefulWidget {
 class _SpeechHomeScreenState extends State<SpeechHomeScreen>
     with WidgetsBindingObserver {
   bool _showSettings = false;
+  bool _keepingScreenOn = false;
+  static const _activityState = MethodChannel('sulti/activity_state');
+
+  void _keepScreenOn(bool active) {
+    if (active == _keepingScreenOn) return;
+    _keepingScreenOn = active;
+    unawaited(
+      _activityState.invokeMethod<void>('keepScreenOn', active).catchError((
+        Object _,
+      ) {
+        /* Optional Android activity capability. */
+      }),
+    );
+  }
+
   final _audioEnvelope = AudioLevelEnvelope();
   List<double> _audioLevels = List.filled(36, 0);
   StreamSubscription<double>? _audioLevelUpdates;
@@ -44,6 +61,9 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
   bool _noiseSuppression = false;
   bool _reviewBeforeTranslation = false;
   bool _translateLinesSeparately = false;
+  TagalogTranscriptReview? _transcriptReview;
+  List<TranscriptChange> _correctionEvents = [];
+  bool _correctionPending = false;
   final Map<TranslationLanguage, _SpeechDraft> _speechDrafts = {};
   _SpeechDraft? _beforeRecording;
   int? _translationRecording;
@@ -226,6 +246,9 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
     audioNotice: _audioNotice,
     recordingDuration: _recordingDuration,
     recognitionDuration: _recognitionDuration,
+    review: _transcriptReview,
+    corrections: List.unmodifiable(_correctionEvents),
+    correctionPending: _correctionPending,
   );
 
   void _restoreSpeechDraft(_SpeechDraft? draft) {
@@ -236,6 +259,9 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
     _audioNotice = draft?.audioNotice;
     _recognitionDuration = draft?.recognitionDuration;
     _recordingDuration = draft?.recordingDuration ?? Duration.zero;
+    _transcriptReview = draft?.review;
+    _correctionEvents = List.of(draft?.corrections ?? const []);
+    _correctionPending = draft?.correctionPending ?? false;
   }
 
   void _clearTurn() {
@@ -251,6 +277,18 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
 
   Future<void> _translate() async {
     if (_busy) return;
+    if (_correctionPending) {
+      setState(() {
+        _correctionPending = false;
+        _correctionEvents.add(
+          TranscriptChange(
+            _transcript,
+            _transcript,
+            'Kept current wording for translation',
+          ),
+        );
+      });
+    }
     _speech.releaseModel();
     await _translation.translate(separateLines: _translateLinesSeparately);
   }
@@ -357,6 +395,9 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
       _error = null;
       _transcript = '';
       _rawTranscript = '';
+      _transcriptReview = null;
+      _correctionEvents = [];
+      _correctionPending = false;
       _audioNotice = null;
       _recordingDuration = Duration.zero;
       _recognitionDuration = null;
@@ -422,6 +463,15 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
       setState(() {
         _rawTranscript = result.text;
         _transcript = result.text.trim();
+        if (_inputLanguage == 'tl' &&
+            !_useCebuanoModel &&
+            _transcript.isNotEmpty) {
+          final review = TagalogTranscriptReview.analyze(result.text);
+          _transcriptReview = review;
+          _transcript = review.cleaned;
+          _correctionEvents = List.of(review.formatting);
+          _correctionPending = review.suggestions.isNotEmpty;
+        }
         if (_transcript.isEmpty) {
           _error = 'No clear speech was recognized. Please try again.';
         }
@@ -443,7 +493,9 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
             _translationRecording!,
             _transcript,
             translateAutomatically:
-                !_reviewBeforeTranslation && _translationInstalled,
+                !_reviewBeforeTranslation &&
+                !_correctionPending &&
+                _translationInstalled,
             separateLines: _translateLinesSeparately,
           ),
         );
@@ -517,6 +569,9 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
   }
 
   String _friendlyError(Object error, {bool whileInstalling = false}) {
+    if (error is TimeoutException) {
+      return error.message ?? 'Speech processing took too long. Please retry.';
+    }
     final message = error.toString().toLowerCase();
     if (message.contains('permission') || message.contains('denied')) {
       return 'Microphone access is needed. Allow it in Android Settings, then try again.';
@@ -564,8 +619,18 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
     if (!mounted) return;
     if (edited != null) {
       setState(() {
+        if (!enterText &&
+            _transcriptReview != null &&
+            edited.trim() != _transcript) {
+          _correctionEvents.add(
+            TranscriptChange(_transcript, edited.trim(), 'Edited by you'),
+          );
+        }
+        _correctionPending = false;
         _transcript = edited.trim();
         if (enterText) {
+          _transcriptReview = null;
+          _correctionEvents = [];
           _inputLanguage = _translation.source.voiceCode;
           _rawTranscript = '';
           _recordingDuration = Duration.zero;
@@ -588,6 +653,44 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
     ).showSnackBar(const SnackBar(content: Text('Transcription copied')));
   }
 
+  Future<void> _chooseCorrection({required bool accept}) async {
+    if (_busy || _transcriptReview == null) return;
+    final review = _transcriptReview!;
+    setState(() {
+      final next = accept ? review.suggested : _transcript;
+      _correctionEvents.add(
+        TranscriptChange(
+          _transcript,
+          next,
+          accept
+              ? 'Suggested wording accepted by you'
+              : 'Recognized wording kept by you',
+        ),
+      );
+      _transcript = next;
+      _correctionPending = false;
+    });
+    _translation.edit(_transcript);
+    if (!_reviewBeforeTranslation && _translationInstalled) await _translate();
+  }
+
+  void _restoreRecognizedText() {
+    if (_busy || _transcriptReview == null) return;
+    setState(() {
+      final original = _transcriptReview!.raw.trim();
+      _correctionEvents.add(
+        TranscriptChange(
+          _transcript,
+          original,
+          'Recognized text restored by you',
+        ),
+      );
+      _transcript = original;
+      _correctionPending = false;
+    });
+    _translation.edit(_transcript);
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused) {
@@ -600,6 +703,7 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
 
   @override
   void dispose() {
+    _keepScreenOn(false);
     ++_requestId;
     _translation.removeListener(_translationChanged);
     _translation.dispose();
@@ -618,6 +722,13 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
 
   @override
   Widget build(BuildContext context) {
+    _keepScreenOn(
+      _loadingModel ||
+          _recording ||
+          _finishing ||
+          _cancelling ||
+          _translation.translating,
+    );
     final colors = Theme.of(context).colorScheme;
     final history = _translation.history.reversed.toList();
     return PopScope(
@@ -800,6 +911,30 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
                                   ),
                                 ),
                                 const SizedBox(height: 12),
+                                if (_transcriptReview != null &&
+                                    !_recording &&
+                                    !_finishing) ...[
+                                  TranscriptReviewCard(
+                                    review: _transcriptReview!,
+                                    current: _transcript,
+                                    events: _correctionEvents,
+                                    pending: _correctionPending,
+                                    onAccept: _busy
+                                        ? null
+                                        : () => _chooseCorrection(accept: true),
+                                    onKeep: _busy
+                                        ? null
+                                        : () =>
+                                              _chooseCorrection(accept: false),
+                                    onRestore: _busy
+                                        ? null
+                                        : _restoreRecognizedText,
+                                    onEdit: _busy
+                                        ? null
+                                        : () => _editTranscript(),
+                                  ),
+                                  const SizedBox(height: 12),
+                                ],
                                 TranslationTextPanel(
                                   key: _translationResultKey,
                                   title:
@@ -1474,11 +1609,17 @@ class _SpeechDraft {
     required this.audioNotice,
     required this.recordingDuration,
     required this.recognitionDuration,
+    required this.review,
+    required this.corrections,
+    required this.correctionPending,
   });
   final String transcript, raw, language, model;
   final String? audioNotice;
   final Duration recordingDuration;
   final Duration? recognitionDuration;
+  final TagalogTranscriptReview? review;
+  final List<TranscriptChange> corrections;
+  final bool correctionPending;
 }
 
 String _formatDuration(Duration duration) {

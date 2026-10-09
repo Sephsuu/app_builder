@@ -74,7 +74,14 @@ class TranslationController extends ChangeNotifier {
     final generation = _generation;
     notifyListeners();
     try {
-      await _settling;
+      await _settling.timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          throw TimeoutException(
+            'The previous translation is still stopping. Please retry in a moment.',
+          );
+        },
+      );
     } catch (_) {
       if (_current(generation)) {
         recording = false;

@@ -1,0 +1,66 @@
+{
+  "device_model": "25057RN09G",
+  "runtime": "onnxruntime-android 1.23.2, four CPU threads",
+  "scope": "Same-device debug builds; sequential observations without thermal or power-state control. Baseline completed two cases before intentionally stopping; candidate completed all five. This is a latency/output regression check, not a linguistic accuracy score.",
+  "baseline": {
+    "scope": "Actual Android inference; not a human-reviewed quality score",
+    "raw_input": false,
+    "complete": false,
+    "results": [
+      {
+        "input": "saan tayo pupunta mamaya",
+        "model_input": "Saan tayo pupunta mamaya",
+        "output": "Asa kita moadto sa ulahi",
+        "elapsed_ms": 24018
+      },
+      {
+        "input": "Saan tayo pupunta mamaya",
+        "model_input": "Saan tayo pupunta mamaya",
+        "output": "Asa kita moadto sa ulahi",
+        "elapsed_ms": 19375
+      }
+    ]
+  },
+  "candidate": {
+    "scope": "Actual Android inference; not a human-reviewed quality score",
+    "raw_input": false,
+    "complete": true,
+    "results": [
+      {
+        "input": "saan tayo pupunta mamaya",
+        "model_input": "Saan tayo pupunta mamaya",
+        "output": "Asa kita moadto sa ulahi",
+        "elapsed_ms": 11435
+      },
+      {
+        "input": "Saan tayo pupunta mamaya",
+        "model_input": "Saan tayo pupunta mamaya",
+        "output": "Asa kita moadto sa ulahi",
+        "elapsed_ms": 9268
+      },
+      {
+        "input": "Saan tayo pupunta mamaya?",
+        "model_input": "Saan tayo pupunta mamaya?",
+        "output": "Asa kita moadto sa ulahi?",
+        "elapsed_ms": 10695
+      },
+      {
+        "input": "Kumain ka na ba?",
+        "model_input": "Kumain ka na ba?",
+        "output": "Nakahingaon ka na?",
+        "elapsed_ms": 11110
+      },
+      {
+        "input": "Pakibigay kay Juan ang 3 libro bukas.",
+        "model_input": "Pakibigay kay Juan ang 3 libro bukas.",
+        "output": "Hatagi si Juan ug tulo ka libro ugma.",
+        "elapsed_ms": 15937
+      }
+    ]
+  },
+  "memory_observation": {
+    "pss_kb": 848905,
+    "rss_kb": 926004,
+    "note": "One sample during candidate decoding, not a peak measurement."
+  }
+}

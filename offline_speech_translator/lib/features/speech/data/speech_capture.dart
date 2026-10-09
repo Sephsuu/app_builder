@@ -13,13 +13,20 @@ abstract interface class SpeechCapture {
 
 class MicrophoneCapture implements SpeechCapture {
   final _recorder = WhisperRecorder();
+  Future<void>? _stopping;
   @override
   Future<bool> requestPermission() => _recorder.requestPermission();
   @override
-  Future<Stream<RecordingChunk>> start() =>
-      _recorder.start(sampleRate: 16000, chunkMilliseconds: 100);
+  Future<Stream<RecordingChunk>> start() async {
+    await _stopping;
+    _stopping = null;
+    return _recorder.start(sampleRate: 16000, chunkMilliseconds: 100);
+  }
+
   @override
-  Future<void> stop() => _recorder.stop();
+  // WhisperRecorder returns immediately to a second stop caller while the
+  // first call is still cleaning up. All callers must await the same fence.
+  Future<void> stop() => _stopping ??= _recorder.stop();
 }
 
 /// Opt-in Android platform suppression; unsupported devices keep the original

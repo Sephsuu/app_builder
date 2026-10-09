@@ -1,0 +1,77 @@
+{
+  "scope": "Single public 12.3-second Filipino fixture replayed on 25057RN09G ARM64, debug builds. Sequential observed timings, not a controlled multi-device benchmark. Tiny captions, Base final.",
+  "fixture": "FLEURS Filipino 10030073068120699612.wav",
+  "baseline": {
+    "model": "base",
+    "live": true,
+    "audio": "sample.f32",
+    "verification_ms": [
+      2108,
+      1523
+    ],
+    "preparation_ms": 2405,
+    "audio_ms": 12296,
+    "final_text": " Anim nabihaag, kabilang ang mga bata at matatanda. Ang maagang pinakawalan, kayun tin ang mga pilipeinong potograpo.",
+    "finish_ms": 9828,
+    "native_processing_ms": 8043,
+    "updates": [
+      {
+        "at_ms": 8070,
+        "text": " Anim na bihag.",
+        "processing_ms": 5016,
+        "notice": null
+      }
+    ],
+    "first_text_ms": 8070
+  },
+  "candidate": {
+    "model": "base",
+    "live": true,
+    "audio": "sample.f32",
+    "verification_ms": [
+      1910,
+      1
+    ],
+    "preparation_ms": 941,
+    "audio_ms": 12296,
+    "final_text": " Anim nabihaag, kabilang ang mga bata at matatanda. Ang maagang pinakawalan, kayun tin ang mga pilipeinong potograpo.",
+    "finish_ms": 8604,
+    "native_processing_ms": 8229,
+    "updates": [
+      {
+        "at_ms": 4334,
+        "text": " Anim na bihag.",
+        "processing_ms": 1286,
+        "notice": null
+      },
+      {
+        "at_ms": 5926,
+        "text": " Anim labihag, kabilang amangabad.",
+        "processing_ms": 1262,
+        "notice": null
+      },
+      {
+        "at_ms": 7596,
+        "text": " Anim labihag, kabilang ang mga baata at mga takanda.",
+        "processing_ms": 1326,
+        "notice": null
+      },
+      {
+        "at_ms": 9298,
+        "text": " kabilang ang mga batata at mga takanda. Ang mga agang pinakawalan.",
+        "processing_ms": 1358,
+        "notice": null
+      },
+      {
+        "at_ms": 11016,
+        "text": " at matakanda. Ang maagang pinakawalan, kayun tin ang mga pilip.",
+        "processing_ms": 1340,
+        "notice": null
+      }
+    ],
+    "first_text_ms": 4334
+  },
+  "final_output_identical": true,
+  "candidate_preview_audio_context": 768,
+  "rejected_experiment": "Minimum preview context 256 produced repetitive provisional text; not shipped."
+}

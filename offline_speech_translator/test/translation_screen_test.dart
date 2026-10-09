@@ -12,7 +12,7 @@ import 'package:offline_speech_translator/features/speech/presentation/conversat
 import 'translation_controller_test.dart' show FakeTranslator, FakeVoice;
 
 class ScreenSpeech extends LocalWhisperSpeechService {
-  late final result = Completer<WhisperResult>();
+  late Completer<WhisperResult> result = Completer<WhisperResult>();
   String? capturedLanguage;
   bool? capturedNoiseSetting;
   int releases = 0;
@@ -125,6 +125,97 @@ void main() {
     await tester.tap(find.byTooltip('Swap languages'));
     await tester.pumpAndSettle();
   }
+
+  Future<void> recordText(WidgetTester tester, String text) async {
+    speech.result = Completer<WhisperResult>();
+    await tester.scrollUntilVisible(
+      find.byTooltip('Start recording'),
+      -250,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.ensureVisible(find.byTooltip('Start recording'));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tap(find.byTooltip('Start recording'));
+    await tester.pump();
+    await tester.tap(find.text('Stop'));
+    await tester.pump();
+    speech.result.complete(
+      WhisperResult(
+        text: text,
+        language: 'tl',
+        languageProbability: -1,
+        segments: [],
+        processingTime: Duration.zero,
+        systemInfo: 'test',
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+  }
+
+  testWidgets(
+    'consecutive speech turns discard stale translations and accept new transcripts',
+    (tester) async {
+      await open(tester);
+      await recordText(tester, 'Nasaan si Maria?');
+      final first = translator.requests.single;
+      await recordText(tester, 'Saan tayo pupunta mamaya?');
+      expect(translator.requests, hasLength(2));
+      first.result.complete('stale translation');
+      translator.requests.last.result.complete('Asa ta moadto unya?');
+      await tester.pumpAndSettle();
+      expect(find.text('stale translation'), findsNothing);
+      await recordText(tester, 'Maraming salamat.');
+      expect(translator.requests.last.text, 'Maraming salamat.');
+      translator.requests.last.result.complete('Daghang salamat.');
+      await tester.pumpAndSettle();
+      expect(speech.finishes, 3);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'Tagalog suggestions require approval and tracker can restore raw words',
+    (tester) async {
+      await open(tester);
+      await recordText(tester, 'saan tayo puponta mamya');
+      expect(translator.requests, isEmpty);
+      await reveal(tester, find.text('Use suggested wording'));
+      await tester.tap(find.text('Use suggested wording'));
+      await tester.pump();
+      expect(translator.requests.single.text, 'Saan tayo pupunta mamaya');
+      translator.requests.single.result.complete('Asa ta moadto unya?');
+      await tester.pumpAndSettle();
+      await reveal(tester, find.text('Restore recognized text'), delta: -250);
+      await tester.tap(find.text('Restore recognized text'));
+      await tester.pumpAndSettle();
+      await showResult(tester);
+      expect(translator.requests.last.text, 'saan tayo puponta mamya');
+      translator.requests.last.result.complete('Restored wording translation');
+      await tester.pumpAndSettle();
+      await swap(tester);
+      expect(find.text('Tagalog transcript check'), findsNothing);
+      await swap(tester);
+      expect(find.text('Tagalog transcript check'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'keeping recognized wording does not apply suggested word replacements',
+    (tester) async {
+      await open(tester);
+      await recordText(tester, 'saan tayo puponta mamya');
+      await reveal(tester, find.text('Keep recognized wording'));
+      await tester.tap(find.text('Keep recognized wording'));
+      await tester.pump();
+      expect(translator.requests.single.text, 'Saan tayo puponta mamya');
+      translator.requests.single.result.complete('Output');
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets(
     'swapping retains independent drafts and clear affects only current direction',

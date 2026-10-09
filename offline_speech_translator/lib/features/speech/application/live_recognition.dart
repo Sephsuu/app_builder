@@ -3,6 +3,16 @@ import 'dart:typed_data';
 
 import 'package:whisper_cpp_flutter_plus/whisper_cpp_flutter_plus.dart';
 
+/// Whisper has 50 encoder frames per second. Preview windows are at most 12 s;
+/// retain at least 15.36 s of context to avoid unstable very short windows,
+/// instead of encoding 30 s for every update.
+/// Align to 128 frames for the attention kernel. Final recognition uses the
+/// model's full default context and is independent of this provisional path.
+int previewAudioContext(int sampleCount) {
+  final frames = (sampleCount + 319) ~/ 320;
+  return (((frames + 100 + 127) ~/ 128) * 128).clamp(768, 1500);
+}
+
 /// Immutable display snapshot. Stable text is still subject to final review.
 class LiveRecognitionSnapshot {
   const LiveRecognitionSnapshot({

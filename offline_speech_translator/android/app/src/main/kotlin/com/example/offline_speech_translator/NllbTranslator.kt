@@ -3,12 +3,14 @@ package com.example.offline_speech_translator
 import ai.onnxruntime.*
 import java.nio.FloatBuffer
 import java.nio.LongBuffer
+import android.util.Log
 
 /** CPU int8 inference. All calls and disposal are serialized by OfflineTranslation. */
 class NllbTranslator(private val models: TranslationModels) {
     private val environment = OrtEnvironment.getEnvironment()
 
     private fun session(name: String, checkCancelled: () -> Unit): OrtSession = OrtSession.SessionOptions().use { options ->
+        val started = System.nanoTime()
         options.setIntraOpNumThreads(4)
         options.setInterOpNumThreads(1)
         options.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.BASIC_OPT)
@@ -16,7 +18,9 @@ class NllbTranslator(private val models: TranslationModels) {
         options.setMemoryPatternOptimization(false)
         // Folding the vocabulary slices would recreate the 1 GiB float matrix.
         options.addConfigEntry("optimization.disable_specified_optimizers", "ConstantFolding")
-        environment.createSession(models.mobileGraph(name, checkCancelled).absolutePath, options)
+        environment.createSession(models.mobileGraph(name, checkCancelled).absolutePath, options).also {
+            Log.d("SalinInference", "$name load_ms=${(System.nanoTime() - started) / 1_000_000}")
+        }
     }
 
     fun translate(text: String, source: String, target: String,
@@ -64,6 +68,8 @@ class NllbTranslator(private val models: TranslationModels) {
         var previous: OrtSession.Result? = null
         var nextIds = NllbTokens.decoderPrefix(target)
         val generated = mutableListOf<Long>()
+        var inferenceNanos = 0L
+        var selectionNanos = 0L
         try {
             repeat(512) {
                 checkCancelled()
@@ -86,7 +92,10 @@ class NllbTranslator(private val models: TranslationModels) {
                             }
                         }
                     }
+                    val inferenceStart = System.nanoTime()
                     val result = decoder.run(feeds, run)
+                    inferenceNanos += System.nanoTime() - inferenceStart
+                    val selectionStart = System.nanoTime()
                     val old = previous
                     if (first == null) first = result
                     previous = result
@@ -103,6 +112,7 @@ class NllbTranslator(private val models: TranslationModels) {
                         if (score > maximum) { maximum = score; best = index }
                     }
                     check(maximum.isFinite()) { "Translation produced invalid scores." }
+                    selectionNanos += System.nanoTime() - selectionStart
                     if (best == 2) {
                         val translated = tokenizer.decode(generated)
                         check(translated.isNotBlank()) { "No translation generated. Edit the source and retry." }
@@ -115,6 +125,7 @@ class NllbTranslator(private val models: TranslationModels) {
             }
             error("Translation exceeded its output limit. Shorten the source and retry; partial text was not accepted.")
         } finally {
+            Log.d("SalinInference", "decode tokens=${generated.size} run_ms=${inferenceNanos / 1_000_000} select_ms=${selectionNanos / 1_000_000}")
             if (previous !== first) previous?.close()
             first?.close()
             empty.close()

@@ -93,6 +93,13 @@ class _ProbeState extends State<Probe> {
       }
       final capture = ReplayCapture(samples);
       service = LocalWhisperSpeechService(captureFactory: () => capture);
+      final verification = <int>[];
+      for (var i = 0; i < 2; i++) {
+        final timer = Stopwatch()..start();
+        await service.findInstalledModel(preferAccuracy: useBase);
+        verification.add(timer.elapsedMilliseconds);
+      }
+      report['verification_ms'] = verification;
       final updates = <Map<String, Object?>>[];
       final clock = Stopwatch();
       subscription = service.liveUpdates.listen((update) {
@@ -104,11 +111,13 @@ class _ProbeState extends State<Probe> {
         });
         if (mounted) setState(() => snapshot = update);
       });
+      final preparation = Stopwatch()..start();
       await service.startRecording(
         language: 'tl',
         preferAccuracy: useBase,
         livePreview: withPreview,
       );
+      report['preparation_ms'] = preparation.elapsedMilliseconds;
       clock.start();
       if (cancelTest) {
         await Future<void>.delayed(const Duration(seconds: 4));
@@ -130,6 +139,7 @@ class _ProbeState extends State<Probe> {
       report.addAll({
         'final_text': result.text,
         'finish_ms': finish.elapsedMilliseconds,
+        'native_processing_ms': result.processingTime.inMilliseconds,
         'updates': updates,
         'first_text_ms': updates
             .where((u) => (u['text'] as String).trim().isNotEmpty)

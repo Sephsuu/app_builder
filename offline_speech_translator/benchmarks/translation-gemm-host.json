@@ -1,0 +1,353 @@
+{
+  "scope": "Host CPU decoder regression comparison; output equality and exploratory timings, not a quality score or phone speed benchmark",
+  "results": [
+    {
+      "id": "user-prepared",
+      "text": "Saan tayo pupunta mamaya",
+      "source": "tgl_Latn",
+      "baseline": "Asa kita moadto sa ulahi",
+      "baseline_seconds": 2.845395250013098,
+      "candidate": "Asa kita moadto sa ulahi",
+      "candidate_seconds": 1.037547457992332,
+      "identical": true
+    },
+    {
+      "id": "greeting-tgl",
+      "text": "Kumusta ka?",
+      "source": "tgl_Latn",
+      "baseline": "Kumusta ka?",
+      "baseline_seconds": 2.41318391598179,
+      "candidate": "Kumusta ka?",
+      "candidate_seconds": 0.9621359590091743,
+      "identical": true
+    },
+    {
+      "id": "greeting-ceb",
+      "text": "Kumusta ka?",
+      "source": "ceb_Latn",
+      "baseline": "Kumusta ka?",
+      "baseline_seconds": 2.410924000025261,
+      "candidate": "Kumusta ka?",
+      "candidate_seconds": 0.9415044159977697,
+      "identical": true
+    },
+    {
+      "id": "thanks-tgl",
+      "text": "Maraming salamat sa tulong mo.",
+      "source": "tgl_Latn",
+      "baseline": "Daghang salamat sa imong tabang.",
+      "baseline_seconds": 3.1416654579807073,
+      "candidate": "Daghang salamat sa imong tabang.",
+      "candidate_seconds": 1.1118925419868901,
+      "identical": true
+    },
+    {
+      "id": "thanks-ceb",
+      "text": "Daghang salamat sa imong tabang.",
+      "source": "ceb_Latn",
+      "baseline": "Maraming salamat sa iyong tulong.",
+      "baseline_seconds": 3.1903043749916833,
+      "candidate": "Maraming salamat sa iyong tulong.",
+      "candidate_seconds": 1.141351082973415,
+      "identical": true
+    },
+    {
+      "id": "eaten-tgl",
+      "text": "Kumain ka na ba?",
+      "source": "tgl_Latn",
+      "baseline": "Nakahingaon ka na?",
+      "baseline_seconds": 3.546412458003033,
+      "candidate": "Nakahingaon ka na?",
+      "candidate_seconds": 1.2391252499946859,
+      "identical": true
+    },
+    {
+      "id": "eaten-ceb",
+      "text": "Nikaon na ba ka?",
+      "source": "ceb_Latn",
+      "baseline": "Nakanin ka na ba?",
+      "baseline_seconds": 3.5738336669746786,
+      "candidate": "Nakanin ka na ba?",
+      "candidate_seconds": 1.2327832499868236,
+      "identical": true
+    },
+    {
+      "id": "location-tgl",
+      "text": "Nasaan si Maria?",
+      "source": "tgl_Latn",
+      "baseline": "Hain si Maria?",
+      "baseline_seconds": 2.4024212500080466,
+      "candidate": "Hain si Maria?",
+      "candidate_seconds": 0.9376477920159232,
+      "identical": true
+    },
+    {
+      "id": "location-ceb",
+      "text": "Asa si Maria?",
+      "source": "ceb_Latn",
+      "baseline": "Saan si Maria?",
+      "baseline_seconds": 2.422500917018624,
+      "candidate": "Saan si Maria?",
+      "candidate_seconds": 0.9518721670028754,
+      "identical": true
+    },
+    {
+      "id": "negative-tgl",
+      "text": "Ayaw ko ng kape.",
+      "source": "tgl_Latn",
+      "baseline": "Dili ko gusto ang kape.",
+      "baseline_seconds": 3.1465744160232134,
+      "candidate": "Dili ko gusto ang kape.",
+      "candidate_seconds": 1.1130111670063343,
+      "identical": true
+    },
+    {
+      "id": "negative-ceb",
+      "text": "Dili ko gusto og kape.",
+      "source": "ceb_Latn",
+      "baseline": "Hindi ako nagustuhan ng kape.",
+      "baseline_seconds": 3.5415944999840576,
+      "candidate": "Hindi ako nagustuhan ng kape.",
+      "candidate_seconds": 1.2041302919969894,
+      "identical": true
+    },
+    {
+      "id": "date-tgl",
+      "text": "Hindi ako pupunta sa Mayo 12.",
+      "source": "tgl_Latn",
+      "baseline": "Dili ako moadto sa Mayo 12.",
+      "baseline_seconds": 3.1546118749829475,
+      "candidate": "Dili ako moadto sa Mayo 12.",
+      "candidate_seconds": 1.1417637919948902,
+      "identical": true
+    },
+    {
+      "id": "date-ceb",
+      "text": "Dili ko moadto sa Mayo 12.",
+      "source": "ceb_Latn",
+      "baseline": "Hindi ako pupunta sa Mayo 12.",
+      "baseline_seconds": 3.5901818329875823,
+      "candidate": "Hindi ako pupunta sa Mayo 12.",
+      "candidate_seconds": 1.5588906669872813,
+      "identical": true
+    },
+    {
+      "id": "command-tgl",
+      "text": "Pakibigay kay Juan ang 3 libro bukas.",
+      "source": "tgl_Latn",
+      "baseline": "Hatagi si Juan ug tulo ka libro ugma.",
+      "baseline_seconds": 5.0996795410173945,
+      "candidate": "Hatagi si Juan ug tulo ka libro ugma.",
+      "candidate_seconds": 2.491237749985885,
+      "identical": true
+    },
+    {
+      "id": "command-ceb",
+      "text": "Palihog ihatag kang Juan ang 3 ka libro ugma.",
+      "source": "ceb_Latn",
+      "baseline": "Mangyaring ibigay sa kanya ang 3 na aklat bukas.",
+      "baseline_seconds": 5.999231791996863,
+      "candidate": "Mangyaring ibigay sa kanya ang 3 na aklat bukas.",
+      "candidate_seconds": 1.9754547089978587,
+      "identical": true
+    },
+    {
+      "id": "casual-tgl",
+      "text": "Sandali lang, papunta na ako.",
+      "source": "tgl_Latn",
+      "baseline": "Hinay, ako moadto.",
+      "baseline_seconds": 3.2645673340011854,
+      "candidate": "Hinay, ako moadto.",
+      "candidate_seconds": 1.2026755419792607,
+      "identical": true
+    },
+    {
+      "id": "casual-ceb",
+      "text": "Kadiyot lang, padulong na ko.",
+      "source": "ceb_Latn",
+      "baseline": "Sa sandaling iyon, ako'y papunta.",
+      "baseline_seconds": 5.1219749999872874,
+      "candidate": "Sa sandaling iyon, ako'y papunta.",
+      "candidate_seconds": 1.6040117500233464,
+      "identical": true
+    },
+    {
+      "id": "aspect-tgl",
+      "text": "Kumakain pa ako, pero kakain ulit mamaya.",
+      "source": "tgl_Latn",
+      "baseline": "Ako na ang mag-andam, apan unya na usab.",
+      "baseline_seconds": 5.662388458993519,
+      "candidate": "Ako na ang mag-andam, apan unya na usab.",
+      "candidate_seconds": 1.7401246670051478,
+      "identical": true
+    },
+    {
+      "id": "aspect-ceb",
+      "text": "Nagkaon pa ko, pero mokaon ko pag-usab unya.",
+      "source": "ceb_Latn",
+      "baseline": "Nakain ako, ngunit ako ay kakainin muli.",
+      "baseline_seconds": 5.228905374999158,
+      "candidate": "Nakain ako, ngunit ako ay kakainin muli.",
+      "candidate_seconds": 1.7064848330046516,
+      "identical": true
+    },
+    {
+      "id": "clauses-tgl",
+      "text": "Kung hindi uulan bukas, pupunta kami ni Ana sa Cebu para bisitahin si Maria, pero babalik kami bago mag-alas 6.",
+      "source": "tgl_Latn",
+      "baseline": "Kon dili moulan ugma, kami ni Ana moadto sa Cebu sa pagduaw kang Maria, apan mobalik kami sa dili pa ang alas-os.",
+      "baseline_seconds": 13.462391583016142,
+      "candidate": "Kon dili moulan ugma, kami ni Ana moadto sa Cebu sa pagduaw kang Maria, apan mobalik kami sa dili pa ang alas-os.",
+      "candidate_seconds": 3.677613709005527,
+      "identical": true
+    },
+    {
+      "id": "clauses-ceb",
+      "text": "Kung dili mag-ulan ugma, moadto mi ni Ana sa Cebu aron bisitahon si Maria, pero mobalik mi sa dili pa alas 6.",
+      "source": "ceb_Latn",
+      "baseline": "Kung hindi magulan bukas, papunta kami ni Ana sa Cebu upang bisitahin si Maria, ngunit babalik kami bago ang 6:00 ng gabi.",
+      "baseline_seconds": 12.86284450002131,
+      "candidate": "Kung hindi magulan bukas, papunta kami ni Ana sa Cebu upang bisitahin si Maria, ngunit babalik kami bago ang 6:00 ng gabi.",
+      "candidate_seconds": 3.502445624995744,
+      "identical": true
+    },
+    {
+      "id": "mixed-tgl",
+      "text": "I-send ang report sa alas 3. Huwag kalimutan ang pangalan ni Ana.",
+      "source": "tgl_Latn",
+      "baseline": "Ipadala ang report sa alas tres. Ayaw kalimti ang ngalan ni Ana.",
+      "baseline_seconds": 7.491873582999688,
+      "candidate": "Ipadala ang report sa alas tres. Ayaw kalimti ang ngalan ni Ana.",
+      "candidate_seconds": 2.1889343749789987,
+      "identical": true
+    },
+    {
+      "id": "mixed-ceb",
+      "text": "I-send ang report alas 3. Ayaw kalimti ang ngalan ni Ana.",
+      "source": "ceb_Latn",
+      "baseline": "Ipadala ang ulat sa alas-3:00, huwag kalimutan ang pangalan ni Ana.",
+      "baseline_seconds": 8.68009570799768,
+      "candidate": "Ipadala ang ulat sa alas-3:00, huwag kalimutan ang pangalan ni Ana.",
+      "candidate_seconds": 2.6984316669986583,
+      "identical": true
+    },
+    {
+      "id": "lines-tgl",
+      "text": "Nasaan si Maria?\nHindi ako pupunta sa Mayo 12.\nPakibigay kay Juan ang 3 libro bukas.",
+      "source": "tgl_Latn",
+      "baseline": "Dili ako moadto sa Mayo 12. Ihatag ang tulo ka libro ngadto kang Juan ugma.",
+      "baseline_seconds": 8.526235833007377,
+      "candidate": "Dili ako moadto sa Mayo 12. Ihatag ang tulo ka libro ngadto kang Juan ugma.",
+      "candidate_seconds": 2.4737876250001136,
+      "identical": true
+    },
+    {
+      "id": "lines-ceb",
+      "text": "Asa si Maria?\nDili ko moadto sa Mayo 12.\nPalihog ihatag kang Juan ang 3 ka libro ugma.",
+      "source": "ceb_Latn",
+      "baseline": "Saan si Maria? Hindi ako pupunta sa Mayo 12.",
+      "baseline_seconds": 5.4946694590034895,
+      "candidate": "Saan si Maria? Hindi ako pupunta sa Mayo 12.",
+      "candidate_seconds": 1.738483332999749,
+      "identical": true
+    },
+    {
+      "id": "lines_mixed-tgl",
+      "text": "I-send ang report sa alas 3.\nHuwag kalimutan ang pangalan ni Ana.",
+      "source": "tgl_Latn",
+      "baseline": "Ipadala ang report sa alas tres. Ayaw kalimti ang ngalan ni Ana.",
+      "baseline_seconds": 7.689802749984665,
+      "candidate": "Ipadala ang report sa alas tres. Ayaw kalimti ang ngalan ni Ana.",
+      "candidate_seconds": 2.3033273339970037,
+      "identical": true
+    },
+    {
+      "id": "lines_mixed-ceb",
+      "text": "I-send ang report alas 3.\nAyaw kalimti ang ngalan ni Ana.",
+      "source": "ceb_Latn",
+      "baseline": "Ipadala ang ulat sa alas-3:00, huwag kalimutan ang pangalan ni Ana.",
+      "baseline_seconds": 8.130856208998011,
+      "candidate": "Ipadala ang ulat sa alas-3:00, huwag kalimutan ang pangalan ni Ana.",
+      "candidate_seconds": 2.678958041011356,
+      "identical": true
+    },
+    {
+      "id": "lines_casual-tgl",
+      "text": "Kumain ka na ba?\nSaan ka pupunta?\nMahal kita.",
+      "source": "tgl_Latn",
+      "baseline": "Nakahingaon ka na? Asa ka moadto? Gihigugma ko ikaw.",
+      "baseline_seconds": 8.1606104579987,
+      "candidate": "Nakahingaon ka na? Asa ka moadto? Gihigugma ko ikaw.",
+      "candidate_seconds": 2.3442751249822322,
+      "identical": true
+    },
+    {
+      "id": "lines_casual-ceb",
+      "text": "Nikaon na ba ka?\nAsa ka padulong?\nGihigugma tika.",
+      "source": "ceb_Latn",
+      "baseline": "Namin na ba? Saan ka papunta? Mahal kita.",
+      "baseline_seconds": 6.56017649997375,
+      "candidate": "Namin na ba? Saan ka papunta? Mahal kita.",
+      "candidate_seconds": 1.9920301660022233,
+      "identical": true
+    },
+    {
+      "id": "travel-later-unpunctuated-tgl",
+      "text": "saan tayo pupunta mamaya",
+      "source": "tgl_Latn",
+      "baseline": "asa man kita sa ulahi",
+      "baseline_seconds": 3.2661651659873314,
+      "candidate": "asa man kita sa ulahi",
+      "candidate_seconds": 1.175309250014834,
+      "identical": true
+    }
+  ],
+  "revision": "261c31d1a5732c67cdd16d80e8d6088507c7ccea",
+  "runtime": "1.23.2",
+  "graphs": {
+    "baseline": {
+      "source_revision": "261c31d1a5732c67cdd16d80e8d6088507c7ccea",
+      "projection_rows": 8192,
+      "files": [
+        {
+          "name": "decoder_mobile.onnx",
+          "bytes": 10966887,
+          "sha256": "7fcb7b97975e0072fe78179f9e47c1cfe7ebdc9b81bb3a1abef40c95b145b239",
+          "sliced_projections": 2
+        },
+        {
+          "name": "encoder_mobile.onnx",
+          "bytes": 5138208,
+          "sha256": "fe318abb9266525970c857de9b85a6bf4823c179bb4f4632bb24a94c5b6c925e",
+          "sliced_projections": 0
+        }
+      ]
+    },
+    "candidate": {
+      "source_revision": "261c31d1a5732c67cdd16d80e8d6088507c7ccea",
+      "projection_rows": 8192,
+      "projection_layout": "gemm",
+      "files": [
+        {
+          "name": "decoder_mobile.onnx",
+          "bytes": 10961417,
+          "sha256": "d0fb708e4957ff7b86934c32bce550918b68a173fab7eadbe12041abd410cf31",
+          "sliced_projections": 2
+        },
+        {
+          "name": "encoder_mobile.onnx",
+          "bytes": 5138208,
+          "sha256": "fe318abb9266525970c857de9b85a6bf4823c179bb4f4632bb24a94c5b6c925e",
+          "sliced_projections": 0
+        }
+      ]
+    }
+  },
+  "complete": true,
+  "summary": {
+    "cases": 30,
+    "changed_outputs": [],
+    "baseline_median_seconds": 4.344930687002488,
+    "candidate_median_seconds": 1.5814512085053138
+  }
+}

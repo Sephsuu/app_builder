@@ -28,6 +28,21 @@ RecordingChunk audio(int seconds) => RecordingChunk(
 
 void main() {
   test(
+    'preview context covers the full window and padding within model limits',
+    () {
+      expect(previewAudioContext(16000 * 3), 768);
+      expect(previewAudioContext(16000 * 12), 768);
+      for (var samples = 1; samples <= 16000 * 12; samples += 1600) {
+        expect(
+          previewAudioContext(samples) * 320,
+          greaterThanOrEqualTo(samples + 32000),
+        );
+      }
+      expect(previewAudioContext(16000 * 30), 1500);
+    },
+  );
+
+  test(
     'coalesces audio and close waits for native cancellation without stale text',
     () async {
       final result = Completer<WhisperResult>();

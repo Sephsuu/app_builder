@@ -1,11 +1,12 @@
 {
   "source_revision": "261c31d1a5732c67cdd16d80e8d6088507c7ccea",
   "projection_rows": 8192,
+  "projection_layout": "gemm",
   "files": [
     {
       "name": "decoder_mobile.onnx",
-      "bytes": 10966887,
-      "sha256": "7fcb7b97975e0072fe78179f9e47c1cfe7ebdc9b81bb3a1abef40c95b145b239",
+      "bytes": 10961417,
+      "sha256": "d0fb708e4957ff7b86934c32bce550918b68a173fab7eadbe12041abd410cf31",
       "sliced_projections": 2
     },
     {

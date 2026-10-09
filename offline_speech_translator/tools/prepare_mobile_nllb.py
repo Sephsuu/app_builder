@@ -2,6 +2,9 @@
 
 The vocabulary projection is evaluated in 8192-row slices, avoiding a 1 GiB
 float32 vocabulary matrix. No weights or quantization parameters are changed.
+The batch-one mobile decoder uses Gemm(transB=1) to consume contiguous rows
+without a separate full-weight transpose on every token. --projection matmul
+reproduces the old layout for regression comparisons.
 Requires onnx; output graphs are packaged assets, original weights stay private.
 Run with ConstantFolding disabled so the slices are materialized one at a time.
 """
@@ -69,12 +72,12 @@ def weight_offsets(path):
     return result
 
 
-def sliced_projection(graph):
+def sliced_projection(graph, projection_layout='gemm'):
     replaced = 0
     for node in graph.node:
         for attribute in node.attribute:
             if attribute.type == onnx.AttributeProto.GRAPH:
-                replaced += sliced_projection(attribute.g)
+                replaced += sliced_projection(attribute.g, projection_layout)
     nodes = list(graph.node)
     projections = [n for n in nodes if n.op_type == 'MatMul' and n.name == '/lm_head/MatMul']
     for projection in projections:
@@ -88,6 +91,16 @@ def sliced_projection(graph):
         assert weight == 'model.shared.weight_merged_0_quantized'
         chunks = []
         replacement = []
+        hidden = projection.input[0]
+        if projection_layout == 'gemm':
+            # Gemm transB reads the contiguous vocabulary rows directly. Avoid
+            # transposing ~1 GiB of dequantized weights on every generated token.
+            graph.initializer.extend([
+                helper.make_tensor('sulti_hidden_shape', TensorProto.INT64, [2], [-1, 1024]),
+                helper.make_tensor('sulti_logits_shape', TensorProto.INT64, [3], [1, -1, 256206]),
+            ])
+            replacement.append(helper.make_node('Reshape', [hidden, 'sulti_hidden_shape'], ['sulti_hidden_2d']))
+            hidden = 'sulti_hidden_2d'
         for start in range(0, 256206, 8192):
             prefix = f'sulti_vocab_{start}'
             for suffix, value in [('start', start), ('end', min(start + 8192, 256206)), ('axis', 0)]:
@@ -107,11 +120,22 @@ def sliced_projection(graph):
             replacement.extend([
                 helper.make_node('Slice', [weight, slice_start, prefix + '_end', prefix + '_axis'], [prefix + '_q']),
                 helper.make_node('DequantizeLinear', [prefix + '_q', *dq.input[1:]], [prefix + '_float']),
-                helper.make_node('Transpose', [prefix + '_float'], [prefix + '_weight'], perm=[1, 0]),
-                helper.make_node('MatMul', [projection.input[0], prefix + '_weight'], [prefix + '_logits']),
             ])
+            if projection_layout == 'gemm':
+                replacement.append(helper.make_node('Gemm', [hidden, prefix + '_float'], [prefix + '_logits'], transB=1))
+            else:
+                replacement.extend([
+                    helper.make_node('Transpose', [prefix + '_float'], [prefix + '_weight'], perm=[1, 0]),
+                    helper.make_node('MatMul', [hidden, prefix + '_weight'], [prefix + '_logits']),
+                ])
             chunks.append(prefix + '_logits')
-        replacement.append(helper.make_node('Concat', chunks, list(projection.output), axis=-1))
+        if projection_layout == 'gemm':
+            replacement.extend([
+                helper.make_node('Concat', chunks, ['sulti_logits_2d'], axis=-1),
+                helper.make_node('Reshape', ['sulti_logits_2d', 'sulti_logits_shape'], list(projection.output)),
+            ])
+        else:
+            replacement.append(helper.make_node('Concat', chunks, list(projection.output), axis=-1))
         revised = []
         for node in nodes:
             if node is dq or node is transpose:
@@ -127,9 +151,10 @@ def sliced_projection(graph):
     return replaced
 
 
-def prepare(directory, output, manifest):
+def prepare(directory, output, manifest, projection_layout='gemm'):
     output.mkdir(parents=True, exist_ok=True)
-    report = {'source_revision': manifest['revision'], 'projection_rows': 8192, 'files': []}
+    report = {'source_revision': manifest['revision'], 'projection_rows': 8192,
+              'projection_layout': projection_layout, 'files': []}
     for asset in manifest['files']:
         if not asset['path'].endswith('.onnx'):
             continue
@@ -138,6 +163,10 @@ def prepare(directory, output, manifest):
             assert hashlib.file_digest(stream, 'sha256').hexdigest() == asset['sha256']
         offsets = weight_offsets(source)
         model = onnx.load(source)
+        if 'decoder' in source.name:
+            weight = next(t for t in model.graph.initializer
+                          if t.name == 'model.shared.weight_merged_0_quantized')
+            assert list(weight.dims) == [256206, 1024], 'Unexpected pinned decoder dimensions'
         for tensor in model.graph.initializer:
             if tensor.name not in offsets:
                 continue
@@ -148,7 +177,7 @@ def prepare(directory, output, manifest):
             for key, value in [('location', source.name), ('offset', str(offset)), ('length', str(size))]:
                 entry = tensor.external_data.add()
                 entry.key, entry.value = key, value
-        count = sliced_projection(model.graph)
+        count = sliced_projection(model.graph, projection_layout)
         assert count == (2 if 'decoder' in source.name else 0)
         name = 'decoder_mobile.onnx' if count else 'encoder_mobile.onnx'
         target = output / name
@@ -165,5 +194,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('models', type=Path)
     parser.add_argument('--output', type=Path, default=Path('android/app/src/main/assets/nllb-mobile'))
+    parser.add_argument('--projection', choices=['matmul', 'gemm'], default='gemm')
     args = parser.parse_args()
-    prepare(args.models, args.output, json.loads(Path('evaluation/nllb-model-manifest.json').read_text()))
+    prepare(args.models, args.output, json.loads(Path('evaluation/nllb-model-manifest.json').read_text()), args.projection)

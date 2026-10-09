@@ -9,17 +9,27 @@ import '../domain/audio_validation.dart';
 import '../domain/audio_level.dart';
 import '../application/live_recognition.dart';
 import 'speech_capture.dart';
+import 'verified_model_cache.dart';
+import 'speech_engine.dart';
 
 /// Device-local Tagalog speech recognition backed by whisper.cpp.
 ///
 /// Tiny Q5_1 favors speed; Base Q5_1 is an optional accuracy candidate. Audio
 /// is previewed through serial rolling windows; Finish runs a separate final pass.
 class LocalWhisperSpeechService {
-  LocalWhisperSpeechService({SpeechCapture Function()? captureFactory})
+  LocalWhisperSpeechService({
+    SpeechCapture Function()? captureFactory,
+    Future<SpeechEngine> Function(String)? engineLoader,
+    this.audioDrainTimeout = const Duration(seconds: 5),
+    this.recognitionTimeout = const Duration(minutes: 3),
+  })
     // Keep the public injection name stable for replay captures.
     // ignore: prefer_initializing_formals
-    : _captureFactory = captureFactory;
+    : _captureFactory = captureFactory,
+       _engineLoader = engineLoader ?? NativeSpeechEngine.load;
   final SpeechCapture Function()? _captureFactory;
+  final Future<SpeechEngine> Function(String) _engineLoader;
+  final Duration audioDrainTimeout, recognitionTimeout;
   AudioDiagnostics diagnostics = AudioDiagnostics();
   String? noiseNotice;
   static const maxRecordingSeconds = 300;
@@ -65,15 +75,16 @@ class LocalWhisperSpeechService {
   );
 
   final WhisperModelManager _models = WhisperModelManager();
+  final _verifiedModels = VerifiedModelCache();
   final StreamController<int> _recognitionProgress =
       StreamController<int>.broadcast();
   final List<Float32List> _recordedChunks = [];
 
-  WhisperEngine? _engine;
+  SpeechEngine? _engine;
   String? _loadedModelPath;
   bool? _loadedAccuracyPreference;
   SpeechCapture? _recorder;
-  WhisperTask? _activeTask;
+  SpeechJob? _activeTask;
   StreamSubscription<RecordingChunk>? _audioSubscription;
   Completer<void>? _audioDone;
   Object? _audioError;
@@ -124,6 +135,7 @@ class LocalWhisperSpeechService {
       throw StateError('Finish or cancel the current recording first.');
     }
     final descriptor = preferAccuracy ? _baseQ5Model : _tinyQ5Model;
+    _verifiedModels.clear();
     await for (final progress in _models.downloadCatalogModel(descriptor)) {
       yield progress;
     }
@@ -141,7 +153,11 @@ class LocalWhisperSpeechService {
 
   Future<File?> _findVerifiedModel(WhisperModelDescriptor descriptor) async {
     try {
-      return await _models.findCatalogModel(descriptor);
+      return await _verifiedModels.find(
+        descriptor.sha256,
+        locate: () => _models.find(descriptor.fileName),
+        verify: () => _models.findCatalogModel(descriptor),
+      );
     } on FormatException {
       await _models.delete(descriptor.fileName);
       return null;
@@ -172,10 +188,7 @@ class LocalWhisperSpeechService {
     _engine?.dispose();
     _engine = null;
     _loadedModelPath = null;
-    _engine = await WhisperEngine.load(
-      model.path,
-      config: const WhisperConfig(backend: WhisperBackend.cpu),
-    );
+    _engine = await _engineLoader(model.path);
     _loadedModelPath = model.path;
     _loadedAccuracyPreference = preferAccuracy;
     _loadedCebuano = cebuano;
@@ -354,6 +367,7 @@ class LocalWhisperSpeechService {
       options: TranscribeOptions(
         language: _recordingLanguage,
         threads: 4,
+        audioContext: preview ? previewAudioContext(samples.length) : 0,
         greedyBestOf: 1,
         strategy: _finalCebuano
             ? WhisperSamplingStrategy.beamSearch
@@ -368,14 +382,36 @@ class LocalWhisperSpeechService {
       ),
     );
     _activeTask = task;
+    var timedOut = false;
+    final deadline = Timer(
+      preview ? const Duration(seconds: 15) : recognitionTimeout,
+      () {
+        timedOut = true;
+        task.cancel();
+      },
+    );
     final progress = preview
         ? null
         : task.progress.listen(_recognitionProgress.add);
     try {
-      return await task.result;
+      final result = await task.result;
+      if (timedOut) {
+        throw TimeoutException(
+          'Speech recognition took too long. Try a shorter recording.',
+        );
+      }
+      return result;
+    } catch (_) {
+      if (timedOut) {
+        throw TimeoutException(
+          'Speech recognition took too long. Try a shorter recording.',
+        );
+      }
+      rethrow;
     } finally {
-      await progress?.cancel();
+      deadline.cancel();
       if (identical(_activeTask, task)) _activeTask = null;
+      await progress?.cancel();
     }
   }
 
@@ -394,7 +430,14 @@ class LocalWhisperSpeechService {
   Future<WhisperResult> _finish(SpeechCapture recorder, int generation) async {
     try {
       await recorder.stop();
-      await _audioDone?.future;
+      await _audioDone?.future.timeout(
+        audioDrainTimeout,
+        onTimeout: () {
+          throw TimeoutException(
+            'The microphone did not finish sending audio. Please record again.',
+          );
+        },
+      );
       await _closePreview();
       _checkGeneration(generation);
       if (_audioError != null) {
@@ -505,5 +548,6 @@ class LocalWhisperSpeechService {
     await _recordingEnded.close();
     await _audioLevels.close();
     _models.close();
+    _verifiedModels.clear();
   }
 }

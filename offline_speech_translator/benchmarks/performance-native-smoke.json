@@ -1,0 +1,44 @@
+{
+  "platform": "android",
+  "voices": {
+    "tl": false,
+    "ceb": false
+  },
+  "installed": true,
+  "translations": [
+    {
+      "source": "tgl_Latn",
+      "target": "ceb_Latn",
+      "input": "Kumusta ka?",
+      "output": "Kumusta ka?",
+      "elapsed_ms": 8193
+    },
+    {
+      "source": "ceb_Latn",
+      "target": "tgl_Latn",
+      "input": "Asa si Maria?",
+      "output": "Saan si Maria?",
+      "elapsed_ms": 8340
+    },
+    {
+      "source": "tgl_Latn",
+      "target": "ceb_Latn",
+      "input": "Hindi ako pupunta sa Mayo 12.",
+      "output": "Dili ako moadto sa Mayo 12.",
+      "elapsed_ms": 9707
+    },
+    {
+      "source": "ceb_Latn",
+      "target": "tgl_Latn",
+      "input": "Dili ko gusto og kape.",
+      "output": "Hindi ako nagustuhan ng kape.",
+      "elapsed_ms": 10753
+    }
+  ],
+  "cancellation": {
+    "outcome": "cancelled",
+    "fence_ms": 189,
+    "retry_output": "Saan si Maria?"
+  },
+  "scope": "25057RN09G ARM64 Android, debug build with sliced Gemm decoder; both directions and cancellation/retry. Local inference with device network settings unchanged."
+}

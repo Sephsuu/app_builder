@@ -61,6 +61,31 @@ void main() {
   });
   tearDown(() => controller.dispose());
 
+  testWidgets(
+    'a stuck previous cancellation reports a preparation timeout and allows retry',
+    (tester) async {
+      translator.cancellation = Completer<void>();
+      final preparation = controller.beginRecording();
+      final failure = expectLater(
+        preparation,
+        throwsA(isA<TimeoutException>()),
+      );
+      await tester.pump(const Duration(seconds: 31));
+      await failure;
+      expect(controller.recording, isFalse);
+      translator.cancellation!.complete();
+      await tester.pump();
+      final next = await controller.beginRecording();
+      await controller.acceptFinal(
+        next,
+        'Saan tayo pupunta?',
+        translateAutomatically: false,
+      );
+      expect(controller.transcript, 'Saan tayo pupunta?');
+      expect(controller.recording, isFalse);
+    },
+  );
+
   for (final source in TranslationLanguage.values) {
     test(
       'final ${source.label} text uses the selected pair and target voice',
