@@ -1,0 +1,14 @@
+{
+  "model": "base",
+  "live": false,
+  "audio": "sample.f32",
+  "audio_ms": 12298,
+  "final_text": " Anim nabihaag, kabilang ang mga bata at matatanda. Ang maagang pinakawalan, kayun tin ang mga pilipeinong potograpo.",
+  "finish_ms": 15010,
+  "updates": [],
+  "first_text_ms": null,
+  "error": "Error code - ORT_FAIL - message: Non-zero status code returned while running If node. Name:'optimum::if' Status Message: Exiting due to terminate flag being set to true.",
+  "stack": "#0      LocalTranslationService.translate (package:offline_speech_translator/features/translation/data/local_translation_service.dart:33:7)\n<asynchronous suspension>\n#1      _ProbeState.run (file:///Users/sephsuu/Documents/_BE/app_builder/offline_speech_translator/tools/live_device_probe.dart:141:33)\n<asynchronous suspension>\n",
+  "scope": "Galaxy A16: public Filipino recording through real Base ASR, release, and mobile NLLB translation",
+  "sampled_peak_pss_kb": 909764
+}

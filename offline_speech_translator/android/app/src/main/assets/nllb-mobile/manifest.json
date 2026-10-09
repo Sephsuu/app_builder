@@ -1,0 +1,18 @@
+{
+  "source_revision": "261c31d1a5732c67cdd16d80e8d6088507c7ccea",
+  "projection_rows": 8192,
+  "files": [
+    {
+      "name": "decoder_mobile.onnx",
+      "bytes": 10966887,
+      "sha256": "7fcb7b97975e0072fe78179f9e47c1cfe7ebdc9b81bb3a1abef40c95b145b239",
+      "sliced_projections": 2
+    },
+    {
+      "name": "encoder_mobile.onnx",
+      "bytes": 5138208,
+      "sha256": "fe318abb9266525970c857de9b85a6bf4823c179bb4f4632bb24a94c5b6c925e",
+      "sliced_projections": 0
+    }
+  ]
+}

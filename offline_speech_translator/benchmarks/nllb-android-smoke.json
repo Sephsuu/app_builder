@@ -1,0 +1,47 @@
+{
+  "platform": "android",
+  "voices": {
+    "tl": false,
+    "ceb": false
+  },
+  "installed": true,
+  "translations": [
+    {
+      "source": "tgl_Latn",
+      "target": "ceb_Latn",
+      "input": "Kumusta ka?",
+      "output": "Kumusta ka?",
+      "elapsed_ms": 1975
+    },
+    {
+      "source": "ceb_Latn",
+      "target": "tgl_Latn",
+      "input": "Asa si Maria?",
+      "output": "Saan si Maria?",
+      "elapsed_ms": 1775
+    },
+    {
+      "source": "tgl_Latn",
+      "target": "ceb_Latn",
+      "input": "Hindi ako pupunta sa Mayo 12.",
+      "output": "Dili ako moadto sa Mayo 12.",
+      "elapsed_ms": 1763
+    },
+    {
+      "source": "ceb_Latn",
+      "target": "tgl_Latn",
+      "input": "Dili ko gusto og kape.",
+      "output": "Hindi ako nagustuhan ng kape.",
+      "elapsed_ms": 1814
+    }
+  ],
+  "cancellation": {
+    "outcome": "cancelled",
+    "fence_ms": 221,
+    "retry_output": "Saan si Maria?"
+  },
+  "scope": "ARM64 API 37.1 emulator, 16 KiB pages; not phone performance",
+  "network": "Wi-Fi and mobile data disabled before process start",
+  "sampled_peak_pss_kb": 2250706,
+  "memory_sampling": "dumpsys meminfo approximately every second; may miss peaks"
+}

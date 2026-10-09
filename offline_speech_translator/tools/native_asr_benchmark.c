@@ -10,8 +10,8 @@
   if (!name) { fprintf(stderr, "Missing %s\n", #name); return 2; }
 
 int main(int argc, char **argv) {
-  if (argc != 5) {
-    fprintf(stderr, "usage: native_asr_benchmark model.bin audio.f32 language threads\n");
+  if (argc != 5 && argc != 6) {
+    fprintf(stderr, "usage: native_asr_benchmark model.bin audio.f32 language threads [beam_size]\n");
     return 2;
   }
   void *lib = dlopen("libwhisper_flutter.so", RTLD_NOW);
@@ -36,7 +36,9 @@ int main(int argc, char **argv) {
   fclose(input);
   void *ctx = wf_context_create(argv[1], 2, 0, 0, 0, 1);
   if (!ctx) { fprintf(stderr, "%s\n", wf_last_error()); return 1; }
-  void *job = wf_job_create(0);
+  int beams = argc == 6 ? atoi(argv[5]) : 1;
+  void *job = wf_job_create(beams > 1 ? 1 : 0);
+  wf_job_set_int(job, "beam_size", beams);
   wf_job_set_int(job, "threads", atoi(argv[4]));
   wf_job_set_int(job, "greedy_best_of", 1);
   wf_job_set_int(job, "no_context", 1);

@@ -1,0 +1,82 @@
+{
+  "revision": "261c31d1a5732c67cdd16d80e8d6088507c7ccea",
+  "runtime": "1.23.2",
+  "scope": "Host CPU inference, not native-speaker quality or phone performance",
+  "tokenizer_parity_cases": 12,
+  "results": [
+    {
+      "source": "tgl_Latn",
+      "target": "ceb_Latn",
+      "input": "Kumusta ka?",
+      "output": "Kumusta ka?",
+      "seconds": 3.8037430420081364
+    },
+    {
+      "source": "ceb_Latn",
+      "target": "tgl_Latn",
+      "input": "Kumusta ka?",
+      "output": "Kumusta ka?",
+      "seconds": 3.1835067919892026
+    },
+    {
+      "source": "tgl_Latn",
+      "target": "ceb_Latn",
+      "input": "Nasaan si Maria?",
+      "output": "Hain si Maria?",
+      "seconds": 2.543890625005588
+    },
+    {
+      "source": "ceb_Latn",
+      "target": "tgl_Latn",
+      "input": "Asa si Maria?",
+      "output": "Saan si Maria?",
+      "seconds": 3.0921065830043517
+    },
+    {
+      "source": "tgl_Latn",
+      "target": "ceb_Latn",
+      "input": "Hindi ako pupunta sa Mayo 12.",
+      "output": "Dili ako moadto sa Mayo 12.",
+      "seconds": 2.937004082996282
+    },
+    {
+      "source": "ceb_Latn",
+      "target": "tgl_Latn",
+      "input": "Dili ko gusto og kape.",
+      "output": "Hindi ako nagustuhan ng kape.",
+      "seconds": 3.8329045830032555
+    },
+    {
+      "source": "tgl_Latn",
+      "target": "ceb_Latn",
+      "input": "Pakibigay kay Juan ang 3 libro bukas.",
+      "output": "Hatagi si Juan ug tulo ka libro ugma.",
+      "seconds": 4.997754875003011
+    },
+    {
+      "source": "ceb_Latn",
+      "target": "tgl_Latn",
+      "input": "Palihog ihatag kang Juan ang 3 ka libro ugma.",
+      "output": "Mangyaring ibigay sa kanya ang 3 na aklat bukas.",
+      "seconds": 4.638246832997538
+    },
+    {
+      "source": "tgl_Latn",
+      "target": "ceb_Latn",
+      "input": "I-send ang report sa alas 3. Huwag kalimutan ang pangalan ni Ana.",
+      "output": "Ipadala ang report sa alas tres. Ayaw kalimti ang ngalan ni Ana.",
+      "seconds": 5.170386291007162
+    },
+    {
+      "source": "ceb_Latn",
+      "target": "tgl_Latn",
+      "input": "I-send ang report alas 3. Ayaw kalimti ang ngalan ni Ana.",
+      "output": "Ipadala ang ulat sa alas-3:00, huwag kalimutan ang pangalan ni Ana.",
+      "seconds": 4.88319470899296
+    }
+  ],
+  "host_maxrss_raw": 2430828544,
+  "host": "macOS-15.7.3-arm64-arm-64bit-Mach-O",
+  "host_maxrss_unit": "bytes on macOS; cumulative process maximum, not per-sentence or Android memory",
+  "quality_status": "Smoke test only; no human reference quality score. Observed meaning error for coffee and omitted Juan in reverse translation."
+}

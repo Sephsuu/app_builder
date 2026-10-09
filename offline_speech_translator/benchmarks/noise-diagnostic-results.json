@@ -1,0 +1,272 @@
+{
+  "scope": "Unchanged Tiny on emulator; synthetic noise, no platform suppression",
+  "device": "emulator-5554",
+  "rows": [
+    {
+      "id": "1869-clean",
+      "file": "1869-clean.f32",
+      "speaker": "public-fleurs-1869",
+      "style": "clean",
+      "reference": "ang mahahaba nitong mga panga ay may 70 na mga matutulis na ngipin kasama na ang ekstrang hanay sa itaas ng bunganga nito nangangahulugan na walang matatakasan ang sinuman na makasalubong nito",
+      "seconds": 24.42,
+      "mix_scale": 1.0,
+      "seed": 20261009,
+      "raw": " Kamaha ba ni tummang ng pangga, ay may pito ng po, nama ng Matutulis ng nangipin. Kasama na ang esksprang, hana isa ita-as nambong ang anito. Nangang ngulugan na walang matata-tagasan, ang sinoman na makasalubungit.",
+      "corrected": " Kamaha ba ni tummang ng pangga, ay may pito ng po, nama ng Matutulis ng nangipin. Kasama na ang esksprang, hana isa ita-as nambong ang anito. Nangang ngulugan na walang matata-tagasan, ang sinoman na makasalubungit.",
+      "processing_ms": 553.982
+    },
+    {
+      "id": "1869-moderate_10db",
+      "file": "1869-moderate_10db.f32",
+      "speaker": "public-fleurs-1869",
+      "style": "moderate_10db",
+      "reference": "ang mahahaba nitong mga panga ay may 70 na mga matutulis na ngipin kasama na ang ekstrang hanay sa itaas ng bunganga nito nangangahulugan na walang matatakasan ang sinuman na makasalubong nito",
+      "seconds": 24.42,
+      "mix_scale": 1.0,
+      "seed": 20261009,
+      "raw": " ang maha banitong mga kanang, ay may pitoong po nama ng matitulis ng nangipin, kasama ng ang eskstang, hana isa kita ng bong ang anito, nangang ng halugang na walang matatagasan ang sinong manna makasalubung po.",
+      "corrected": " ang maha banitong mga kanang, ay may pitoong po nama ng matitulis ng nangipin, kasama ng ang eskstang, hana isa kita ng bong ang anito, nangang ng halugang na walang matatagasan ang sinong manna makasalubung po.",
+      "processing_ms": 507.451
+    },
+    {
+      "id": "1869-loud_0db",
+      "file": "1869-loud_0db.f32",
+      "speaker": "public-fleurs-1869",
+      "style": "loud_0db",
+      "reference": "ang mahahaba nitong mga panga ay may 70 na mga matutulis na ngipin kasama na ang ekstrang hanay sa itaas ng bunganga nito nangangahulugan na walang matatakasan ang sinuman na makasalubong nito",
+      "seconds": 24.42,
+      "mix_scale": 1.0,
+      "seed": 20261009,
+      "raw": " Ang maha ban is kino nang na kamang. Ay may si kinto, ng anang na kito ni si ni si, asamang na, ang isstang, hana isa kita asang ng anang nang na kito. Yang anang na kito ni sa ang gwilang na takakasang, ni si no man na makasaloon ni po.",
+      "corrected": " Ang maha ban is kino nang na kamang. Ay may si kinto, ng anang na kito ni si ni si, asamang na, ang isstang, hana isa kita asang ng anang nang na kito. Yang anang na kito ni sa ang gwilang na takakasang, ni si no man na makasaloon ni po.",
+      "processing_ms": 669.284
+    },
+    {
+      "id": "1869-changing_noise",
+      "file": "1869-changing_noise.f32",
+      "speaker": "public-fleurs-1869",
+      "style": "changing_noise",
+      "reference": "ang mahahaba nitong mga panga ay may 70 na mga matutulis na ngipin kasama na ang ekstrang hanay sa itaas ng bunganga nito nangangahulugan na walang matatakasan ang sinuman na makasalubong nito",
+      "seconds": 24.42,
+      "mix_scale": 1.0,
+      "seed": 20261009,
+      "raw": " Ang maha ba ni tummang ng kana. Aima it's been a long time ago. Nama ng atitulis ng itin. Asama ng ang isstang, hana isa kita as ng buwana mga ni tummang. Nama ng atin buka ng gwilang ng takakasang, ni tummang ng nakakasang ni tummang ng ni tummang.",
+      "corrected": " Ang maha ba ni tummang ng kana. Aima it's been a long time ago. Nama ng atitulis ng itin. Asama ng ang isstang, hana isa kita as ng buwana mga ni tummang. Nama ng atin buka ng gwilang ng takakasang, ni tummang ng nakakasang ni tummang ng ni tummang.",
+      "processing_ms": 675.568
+    },
+    {
+      "id": "1869-quiet_noisy",
+      "file": "1869-quiet_noisy.f32",
+      "speaker": "public-fleurs-1869",
+      "style": "quiet_noisy",
+      "reference": "ang mahahaba nitong mga panga ay may 70 na mga matutulis na ngipin kasama na ang ekstrang hanay sa itaas ng bunganga nito nangangahulugan na walang matatakasan ang sinuman na makasalubong nito",
+      "seconds": 24.42,
+      "mix_scale": 1.0,
+      "seed": 20261009,
+      "raw": " a maha ban iskin na lang at ang maypipong siya, na maha kukunis niitin, asa na lang ng, ang ang ang stany, ang hany, ang kita ang askang ang na mga niitit, na maha binega ang ng walang naka kaka sa niitin ang manna, makas sa niitin ang niitin ang",
+      "corrected": " a maha ban iskin na lang at ang maypipong siya, na maha kukunis niitin, asa na lang ng, ang ang ang stany, ang hany, ang kita ang askang ang na mga niitit, na maha binega ang ng walang naka kaka sa niitin ang manna, makas sa niitin ang niitin ang",
+      "processing_ms": 1388.201
+    },
+    {
+      "id": "1869-pauses",
+      "file": "1869-pauses.f32",
+      "speaker": "public-fleurs-1869",
+      "style": "pauses",
+      "reference": "ang mahahaba nitong mga panga ay may 70 na mga matutulis na ngipin kasama na ang ekstrang hanay sa itaas ng bunganga nito nangangahulugan na walang matatakasan ang sinuman na makasalubong nito",
+      "seconds": 26.42,
+      "mix_scale": 1.0,
+      "seed": 20261009,
+      "raw": " Amahab nito ng mga pangah, ay may pitong po nama ng Matutulis ng nipin. Kasama na ang esks, ang hana isa ita-as nambunganganito. Nangang ngulugan na walang matata-gasan ang siyin o manna makasalubungito.",
+      "corrected": " Amahab nito ng mga pangah, ay may pitong po nama ng Matutulis ng nipin. Kasama na ang esks, ang hana isa ita-as nambunganganito. Nangang ngulugan na walang matata-gasan ang siyin o manna makasalubungito.",
+      "processing_ms": 538.395
+    },
+    {
+      "id": "1930-clean",
+      "file": "1930-clean.f32",
+      "speaker": "public-fleurs-1930",
+      "style": "clean",
+      "reference": "anim na bihag kabilang ang mga bata at matatanda ang maagang pinakawalan gayon din ang mga pilipinong potograpo",
+      "seconds": 12.3,
+      "mix_scale": 1.0,
+      "seed": 20261009,
+      "raw": " Anim labihag, kabilang ang mga batah at matakanda. Ang maagang pinakawalan, kayun tin ang mga pilipinong potograbo.",
+      "corrected": " Anim labihag, kabilang ang mga batah at matakanda. Ang maagang pinakawalan, kayun tin ang mga pilipinong potograbo.",
+      "processing_ms": 449.446
+    },
+    {
+      "id": "1930-moderate_10db",
+      "file": "1930-moderate_10db.f32",
+      "speaker": "public-fleurs-1930",
+      "style": "moderate_10db",
+      "reference": "anim na bihag kabilang ang mga bata at matatanda ang maagang pinakawalan gayon din ang mga pilipinong potograpo",
+      "seconds": 12.3,
+      "mix_scale": 1.0,
+      "seed": 20261009,
+      "raw": " Aning dhabi hang, kabilang ang mga pata at matatanda. Ang mga ang finakawalan, kayun fin ang mga pilipino koto-krabo.",
+      "corrected": " Aning dhabi hang, kabilang ang mga pata at matatanda. Ang mga ang finakawalan, kayun fin ang mga pilipino koto-krabo.",
+      "processing_ms": 451.734
+    },
+    {
+      "id": "1930-loud_0db",
+      "file": "1930-loud_0db.f32",
+      "speaker": "public-fleurs-1930",
+      "style": "loud_0db",
+      "reference": "anim na bihag kabilang ang mga bata at matatanda ang maagang pinakawalan gayon din ang mga pilipinong potograpo",
+      "seconds": 12.3,
+      "mix_scale": 1.0,
+      "seed": 20261009,
+      "raw": " A ninde tindang, sa pilang ang mga pata at mga datangida. Ang mga agang kina kagalayan sa yung pin ang mga pilipito ko toksrapo.",
+      "corrected": " A ninde tindang, sa pilang ang mga pata at mga datangida. Ang mga agang kina kagalayan sa yung pin ang mga pilipito ko toksrapo.",
+      "processing_ms": 470.785
+    },
+    {
+      "id": "1930-changing_noise",
+      "file": "1930-changing_noise.f32",
+      "speaker": "public-fleurs-1930",
+      "style": "changing_noise",
+      "reference": "anim na bihag kabilang ang mga bata at matatanda ang maagang pinakawalan gayon din ang mga pilipinong potograpo",
+      "seconds": 12.3,
+      "mix_scale": 1.0,
+      "seed": 20261009,
+      "raw": " Aning dapihang, kabilang ang mga pata at mga tanda. Ang mga agang kina-kagalay, sa yung iing ang mga pilipito ko toks na po.",
+      "corrected": " Aning dapihang, kabilang ang mga pata at mga tanda. Ang mga agang kina-kagalay, sa yung iing ang mga pilipito ko toks na po.",
+      "processing_ms": 533.859
+    },
+    {
+      "id": "1930-quiet_noisy",
+      "file": "1930-quiet_noisy.f32",
+      "speaker": "public-fleurs-1930",
+      "style": "quiet_noisy",
+      "reference": "anim na bihag kabilang ang mga bata at matatanda ang maagang pinakawalan gayon din ang mga pilipinong potograpo",
+      "seconds": 12.3,
+      "mix_scale": 1.0,
+      "seed": 20261009,
+      "raw": " Aaling datin ang sa pilang ang manapata at ngadata nida. Ang maagang kina kagalay ay sa yung pin ang manapipidong ko toks na ko.",
+      "corrected": " Aaling datin ang sa pilang ang manapata at ngadata nida. Ang maagang kina kagalay ay sa yung pin ang manapipidong ko toks na ko.",
+      "processing_ms": 573.459
+    },
+    {
+      "id": "1930-pauses",
+      "file": "1930-pauses.f32",
+      "speaker": "public-fleurs-1930",
+      "style": "pauses",
+      "reference": "anim na bihag kabilang ang mga bata at matatanda ang maagang pinakawalan gayon din ang mga pilipinong potograpo",
+      "seconds": 14.3,
+      "mix_scale": 1.0,
+      "seed": 20261009,
+      "raw": " Anim labihag, kabilang ang mga batah at matakanda. Ang maagang pinakawalan, kayun tin ang mga pilipinong potograpo.",
+      "corrected": " Anim labihag, kabilang ang mga batah at matakanda. Ang maagang pinakawalan, kayun tin ang mga pilipinong potograpo.",
+      "processing_ms": 449.332
+    }
+  ],
+  "by_condition": {
+    "changing_noise": {
+      "recordings": 2,
+      "speakers": 2,
+      "styles": [
+        "changing_noise"
+      ],
+      "raw": {
+        "wer": 1.3,
+        "cer": 0.43529411764705883,
+        "exact_match": 0.0
+      },
+      "corrected": {
+        "wer": 1.3,
+        "cer": 0.43529411764705883,
+        "exact_match": 0.0
+      },
+      "corrections_worsening_word_distance": 0
+    },
+    "clean": {
+      "recordings": 2,
+      "speakers": 2,
+      "styles": [
+        "clean"
+      ],
+      "raw": {
+        "wer": 0.7,
+        "cer": 0.1843137254901961,
+        "exact_match": 0.0
+      },
+      "corrected": {
+        "wer": 0.7,
+        "cer": 0.1843137254901961,
+        "exact_match": 0.0
+      },
+      "corrections_worsening_word_distance": 0
+    },
+    "loud_0db": {
+      "recordings": 2,
+      "speakers": 2,
+      "styles": [
+        "loud_0db"
+      ],
+      "raw": {
+        "wer": 1.18,
+        "cer": 0.403921568627451,
+        "exact_match": 0.0
+      },
+      "corrected": {
+        "wer": 1.18,
+        "cer": 0.403921568627451,
+        "exact_match": 0.0
+      },
+      "corrections_worsening_word_distance": 0
+    },
+    "moderate_10db": {
+      "recordings": 2,
+      "speakers": 2,
+      "styles": [
+        "moderate_10db"
+      ],
+      "raw": {
+        "wer": 0.76,
+        "cer": 0.22745098039215686,
+        "exact_match": 0.0
+      },
+      "corrected": {
+        "wer": 0.76,
+        "cer": 0.22745098039215686,
+        "exact_match": 0.0
+      },
+      "corrections_worsening_word_distance": 0
+    },
+    "pauses": {
+      "recordings": 2,
+      "speakers": 2,
+      "styles": [
+        "pauses"
+      ],
+      "raw": {
+        "wer": 0.62,
+        "cer": 0.15294117647058825,
+        "exact_match": 0.0
+      },
+      "corrected": {
+        "wer": 0.62,
+        "cer": 0.15294117647058825,
+        "exact_match": 0.0
+      },
+      "corrections_worsening_word_distance": 0
+    },
+    "quiet_noisy": {
+      "recordings": 2,
+      "speakers": 2,
+      "styles": [
+        "quiet_noisy"
+      ],
+      "raw": {
+        "wer": 1.28,
+        "cer": 0.5294117647058824,
+        "exact_match": 0.0
+      },
+      "corrected": {
+        "wer": 1.28,
+        "cer": 0.5294117647058824,
+        "exact_match": 0.0
+      },
+      "corrections_worsening_word_distance": 0
+    }
+  }
+}

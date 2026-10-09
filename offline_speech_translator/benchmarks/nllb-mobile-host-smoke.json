@@ -1,0 +1,80 @@
+{
+  "revision": "261c31d1a5732c67cdd16d80e8d6088507c7ccea",
+  "runtime": "1.23.2",
+  "scope": "Host CPU inference, not native-speaker quality or phone performance",
+  "mobile_graph": true,
+  "tokenizer_parity_cases": 12,
+  "results": [
+    {
+      "source": "tgl_Latn",
+      "target": "ceb_Latn",
+      "input": "Kumusta ka?",
+      "output": "Kumusta ka?",
+      "seconds": 2.410355125000933
+    },
+    {
+      "source": "ceb_Latn",
+      "target": "tgl_Latn",
+      "input": "Kumusta ka?",
+      "output": "Kumusta ka?",
+      "seconds": 2.3957354169979226
+    },
+    {
+      "source": "tgl_Latn",
+      "target": "ceb_Latn",
+      "input": "Nasaan si Maria?",
+      "output": "Hain si Maria?",
+      "seconds": 2.4020713749923743
+    },
+    {
+      "source": "ceb_Latn",
+      "target": "tgl_Latn",
+      "input": "Asa si Maria?",
+      "output": "Saan si Maria?",
+      "seconds": 2.408176375000039
+    },
+    {
+      "source": "tgl_Latn",
+      "target": "ceb_Latn",
+      "input": "Hindi ako pupunta sa Mayo 12.",
+      "output": "Dili ako moadto sa Mayo 12.",
+      "seconds": 3.163811624996015
+    },
+    {
+      "source": "ceb_Latn",
+      "target": "tgl_Latn",
+      "input": "Dili ko gusto og kape.",
+      "output": "Hindi ako nagustuhan ng kape.",
+      "seconds": 3.5184944579959847
+    },
+    {
+      "source": "tgl_Latn",
+      "target": "ceb_Latn",
+      "input": "Pakibigay kay Juan ang 3 libro bukas.",
+      "output": "Hatagi si Juan ug tulo ka libro ugma.",
+      "seconds": 4.982118374988204
+    },
+    {
+      "source": "ceb_Latn",
+      "target": "tgl_Latn",
+      "input": "Palihog ihatag kang Juan ang 3 ka libro ugma.",
+      "output": "Mangyaring ibigay sa kanya ang 3 na aklat bukas.",
+      "seconds": 5.728897000008146
+    },
+    {
+      "source": "tgl_Latn",
+      "target": "ceb_Latn",
+      "input": "I-send ang report sa alas 3. Huwag kalimutan ang pangalan ni Ana.",
+      "output": "Ipadala ang report sa alas tres. Ayaw kalimti ang ngalan ni Ana.",
+      "seconds": 6.850572791998275
+    },
+    {
+      "source": "ceb_Latn",
+      "target": "tgl_Latn",
+      "input": "I-send ang report alas 3. Ayaw kalimti ang ngalan ni Ana.",
+      "output": "Ipadala ang ulat sa alas-3:00, huwag kalimutan ang pangalan ni Ana.",
+      "seconds": 7.242607666994445
+    }
+  ],
+  "host_maxrss_raw": 1406255104
+}

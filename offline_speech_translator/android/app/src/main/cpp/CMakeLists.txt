@@ -1,0 +1,16 @@
+cmake_minimum_required(VERSION 3.22)
+project(sulti_tokenizer LANGUAGES C CXX)
+include(FetchContent)
+set(SPM_ENABLE_SHARED OFF CACHE BOOL "" FORCE)
+set(SPM_ENABLE_TCMALLOC OFF CACHE BOOL "" FORCE)
+set(SPM_BUILD_TEST OFF CACHE BOOL "" FORCE)
+set(SPM_ENABLE_NFKC_COMPILE OFF CACHE BOOL "" FORCE)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+FetchContent_Declare(sentencepiece
+    URL https://codeload.github.com/google/sentencepiece/tar.gz/refs/tags/v0.2.0
+    URL_HASH SHA256=9970f0a0afee1648890293321665e5b2efa04eaec9f1671fcf8048f456f5bb86)
+FetchContent_MakeAvailable(sentencepiece)
+add_library(sulti_tokenizer SHARED tokenizer_jni.cpp)
+target_compile_features(sulti_tokenizer PRIVATE cxx_std_17)
+target_include_directories(sulti_tokenizer PRIVATE ${sentencepiece_SOURCE_DIR}/src)
+target_link_libraries(sulti_tokenizer PRIVATE sentencepiece-static log)

@@ -1,0 +1,13 @@
+Cebuano speech research model (optional separate import; no model weights in this notice)
+Author: eemberda
+Source: https://huggingface.co/eemberda/phcodeswitch-ceb-dvo
+Pinned revision: 3a6999b22f5ebd754a25ce59c54897e2ac1e930d
+License: Creative Commons Attribution-NonCommercial 4.0 International
+License terms: https://creativecommons.org/licenses/by-nc/4.0/legalcode.en
+Base model: OpenAI Whisper Small (MIT).
+Changes by this research demo: Safetensors tensor-name/format conversion to Whisper
+GGML F16 followed by whisper.cpp v1.8.2 Q5_1 quantization. No further fine-tuning.
+Converted file: ggml-cebuano-small-q5_1.bin, 190085487 bytes
+SHA-256: 43b3973c2baaff647a92619102c24e3dd0ed1f0e00993b7e3ecd68231dfc587f
+Noncommercial research/demo only. Limited dialect and vocabulary coverage.
+The publisher's reported accuracy is not this app's measured accuracy.

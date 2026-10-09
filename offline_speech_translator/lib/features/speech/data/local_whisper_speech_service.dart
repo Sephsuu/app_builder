@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:flutter/services.dart';
 
 import 'package:whisper_cpp_flutter_plus/whisper_cpp_flutter_plus.dart';
 
@@ -14,8 +15,12 @@ import 'speech_capture.dart';
 /// is previewed through serial rolling windows; Finish runs a separate final pass.
 class LocalWhisperSpeechService {
   LocalWhisperSpeechService({SpeechCapture Function()? captureFactory})
-    : _captureFactory = captureFactory ?? MicrophoneCapture.new;
-  final SpeechCapture Function() _captureFactory;
+    // Keep the public injection name stable for replay captures.
+    // ignore: prefer_initializing_formals
+    : _captureFactory = captureFactory;
+  final SpeechCapture Function()? _captureFactory;
+  AudioDiagnostics diagnostics = AudioDiagnostics();
+  String? noiseNotice;
   static const maxRecordingSeconds = 300;
   final _liveUpdates = StreamController<LiveRecognitionSnapshot>.broadcast();
   final _recordingEnded = StreamController<void>.broadcast();
@@ -73,6 +78,29 @@ class LocalWhisperSpeechService {
   int _recordedSampleCount = 0;
   String _recordingLanguage = 'tl';
   bool _finalPreferAccuracy = false;
+  bool _finalCebuano = false;
+  bool? _loadedCebuano;
+  static const _cebuanoChannel = MethodChannel('sulti/cebuano_model');
+
+  Future<File?> findCebuanoModel() async {
+    try {
+      final path = await _cebuanoChannel.invokeMethod<String>('find');
+      return path == null ? null : File(path);
+    } on MissingPluginException {
+      return null;
+    }
+  }
+
+  Future<bool> importCebuanoModel() async {
+    if (_recorder != null ||
+        _starting != null ||
+        _finishing != null ||
+        _activeTask != null ||
+        _cancelling != null) {
+      throw StateError('Finish or cancel the current recording first.');
+    }
+    return await _cebuanoChannel.invokeMethod<bool>('import') ?? false;
+  }
 
   Stream<int> get recognitionProgress => _recognitionProgress.stream;
 
@@ -117,15 +145,25 @@ class LocalWhisperSpeechService {
     }
   }
 
-  Future<void> loadModel({bool preferAccuracy = false}) async {
-    if (_engine != null && _loadedAccuracyPreference == preferAccuracy) return;
-    final model = await findInstalledModel(preferAccuracy: preferAccuracy);
+  Future<void> loadModel({
+    bool preferAccuracy = false,
+    bool cebuano = false,
+  }) async {
+    if (_engine != null &&
+        _loadedAccuracyPreference == preferAccuracy &&
+        _loadedCebuano == cebuano) {
+      return;
+    }
+    final model = cebuano
+        ? await findCebuanoModel()
+        : await findInstalledModel(preferAccuracy: preferAccuracy);
     if (model == null) {
       throw StateError('Install the multilingual Whisper model first.');
     }
 
     if (_engine != null && _loadedModelPath == model.path) {
       _loadedAccuracyPreference = preferAccuracy;
+      _loadedCebuano = cebuano;
       return;
     }
     _engine?.dispose();
@@ -137,12 +175,15 @@ class LocalWhisperSpeechService {
     );
     _loadedModelPath = model.path;
     _loadedAccuracyPreference = preferAccuracy;
+    _loadedCebuano = cebuano;
   }
 
   Future<void> startRecording({
     String language = 'tl',
     bool preferAccuracy = false,
     bool livePreview = true,
+    bool noiseSuppression = false,
+    bool cebuano = false,
   }) {
     if (_disposed ||
         _starting != null ||
@@ -151,13 +192,25 @@ class LocalWhisperSpeechService {
         _recorder != null) {
       return Future.error(StateError('Speech recognition is busy.'));
     }
-    if (!const {'tl', 'en', 'auto'}.contains(language)) {
+    if (!const {'tl', 'en', 'auto', 'ceb'}.contains(language)) {
       return Future.error(
         ArgumentError.value(language, 'language', 'Unsupported input mode'),
       );
     }
+    if (language == 'ceb' && !cebuano) {
+      return Future.error(
+        StateError('Import the trained Cebuano model first.'),
+      );
+    }
     final generation = ++_generation;
-    final operation = _start(language, preferAccuracy, livePreview, generation);
+    final operation = _start(
+      language,
+      preferAccuracy,
+      livePreview,
+      noiseSuppression,
+      generation,
+      cebuano,
+    );
     _starting = operation;
     return operation.whenComplete(() => _starting = null);
   }
@@ -166,10 +219,14 @@ class LocalWhisperSpeechService {
     String language,
     bool preferAccuracy,
     bool livePreview,
+    bool noiseSuppression,
     int generation,
+    bool cebuano,
   ) async {
     _finalPreferAccuracy = preferAccuracy;
-    if (preferAccuracy && livePreview) {
+    _finalCebuano = cebuano;
+    if (cebuano) livePreview = false;
+    if (!cebuano && preferAccuracy && livePreview) {
       if (await findInstalledModel(preferAccuracy: true) == null) {
         throw StateError(
           'Install Whisper Base before enabling final refinement.',
@@ -179,18 +236,31 @@ class LocalWhisperSpeechService {
     }
     // Use the fast installed model for captions, then swap to Base only after
     // stopping preview. Both native models are never resident simultaneously.
-    await loadModel(preferAccuracy: preferAccuracy && !livePreview);
+    await loadModel(
+      preferAccuracy: preferAccuracy && !livePreview,
+      cebuano: cebuano,
+    );
     _checkGeneration(generation);
-    _recordingLanguage = language;
-    final recorder = _captureFactory();
+    _recordingLanguage = cebuano
+        ? 'tl'
+        : language; // Fine-tuning used the tl decoder prompt.
+    final recorder =
+        _captureFactory?.call() ??
+        (noiseSuppression ? NoiseSuppressedCapture() : MicrophoneCapture());
     _recorder = recorder;
     _clearRecording();
+    diagnostics = AudioDiagnostics();
+    noiseNotice = null;
     try {
       if (!await recorder.requestPermission()) {
         throw const WhisperException('Microphone permission was not granted');
       }
       _checkGeneration(generation);
       final audio = await recorder.start();
+      if (recorder is NoiseSuppressedCapture && !recorder.suppressionActive) {
+        noiseNotice =
+            'Noise suppression is unavailable on this device. Using the original microphone path.';
+      }
       _checkGeneration(generation);
       if (livePreview) {
         _preview = LiveRecognition(
@@ -227,6 +297,7 @@ class LocalWhisperSpeechService {
                 ? chunk.samples
                 : Float32List.sublistView(chunk.samples, 0, remaining);
             _recordedChunks.add(samples);
+            diagnostics.add(samples);
             _recordedSampleCount += samples.length;
             _preview?.add(RecordingChunk(samples, 16000));
             if (_recordedSampleCount >= maxRecordingSeconds * 16000) {
@@ -280,6 +351,10 @@ class LocalWhisperSpeechService {
         language: _recordingLanguage,
         threads: 4,
         greedyBestOf: 1,
+        strategy: _finalCebuano
+            ? WhisperSamplingStrategy.beamSearch
+            : WhisperSamplingStrategy.greedy,
+        beamSize: 5,
         tokenTimestamps: preview,
         noTimestamps: !preview,
         initialPrompt: context,
@@ -332,7 +407,10 @@ class LocalWhisperSpeechService {
       }
       _recordedChunks.clear();
       validateAudio(samples);
-      await loadModel(preferAccuracy: _finalPreferAccuracy);
+      await loadModel(
+        preferAccuracy: _finalPreferAccuracy,
+        cebuano: _finalCebuano,
+      );
       _checkGeneration(generation);
       final result = await _recognize(samples);
       _checkGeneration(generation);
@@ -354,6 +432,21 @@ class LocalWhisperSpeechService {
     if (preview == null) return;
     await preview.close();
     if (identical(_preview, preview)) _preview = null;
+  }
+
+  /// Release ASR before loading the large translation model.
+  void releaseModel() {
+    if (_recorder != null ||
+        _activeTask != null ||
+        _starting != null ||
+        _finishing != null ||
+        _cancelling != null) {
+      throw StateError('Finish speech recognition before releasing its model.');
+    }
+    _engine?.dispose();
+    _engine = null;
+    _loadedModelPath = null;
+    _loadedAccuracyPreference = null;
   }
 
   Future<void> cancelTranscription() =>

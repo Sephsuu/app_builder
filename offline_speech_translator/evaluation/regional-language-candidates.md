@@ -4,7 +4,8 @@ The app's verified language identifiers remain Tagalog (`tl`), English (`en`)
 and the installed model's automatic detection mode. Language identifiers alone
 are not evidence of accuracy. Cebuano / Bisaya is the user's next priority.
 Do not label stock Whisper Tiny/Base as Cebuano models or as supporting all
-Philippine languages. No regional candidate below has been integrated.
+Philippine languages. The Davao Cebuano candidate below now has an optional evaluated GGML integration;
+see [current results](implementation-results.md).
 
 ## Cebuano: next evaluation candidate
 
@@ -18,9 +19,8 @@ shipping. Model API revision inspected: `3a6999b22f5ebd754a25ce59c54897e2ac1e930
 The repository contains Safetensors/config/tokenizer files, not a ready GGML
 artifact. It uses the Tagalog decoder prompt because it was specifically trained
 that way; using `tl` with the unmodified stock model does not reproduce this
-training. Next steps: export with a compatible whisper.cpp HF-to-GGML converter,
-verify tokenizer/model dimensions, quantize, compare to the PyTorch reference,
-then benchmark actual Cebuano on the Galaxy A16. Do not silently change the
+training. Conversion, tokenizer verification, Q5_1 quantization and a one-clip Galaxy A16
+benchmark are complete. PyTorch-reference parity and broader evaluation remain. Do not silently change the
 selected Tagalog checkpoint or promise instantaneous Small inference.
 
 [BuzzASR/cebuano](https://huggingface.co/BuzzASR/cebuano) is another candidate,
@@ -40,5 +40,5 @@ For each candidate, test held-out native speakers, regional pronunciation,
 Taglish/code switching, negation/names/numbers, natural repetition, noise and
 quiet speech. Measure WER/CER, first-caption time, final delay, peak memory and
 thermal slowdown. Keep language-specific checkpoints replaceable and install
-only after confirming format, license and quality. The existing app has no cloud
-fallback or validated Cebuano translation/TTS stages.
+only after confirming format, license and quality. The app has no cloud fallback. Translation has known quality failures and the
+tested phone lacks offline target-language voices; see the current results.

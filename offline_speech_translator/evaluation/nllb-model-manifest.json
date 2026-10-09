@@ -1,0 +1,21 @@
+{
+  "repository": "Xenova/nllb-200-distilled-600M",
+  "revision": "261c31d1a5732c67cdd16d80e8d6088507c7ccea",
+  "files": [
+    {
+      "path": "onnx/decoder_model_merged_quantized.onnx",
+      "bytes": 475505771,
+      "sha256": "dd66608c2a4194e78f95548fa0e64f24302303698c5b09fa8e1f9e16ec00676b"
+    },
+    {
+      "path": "onnx/encoder_model_quantized.onnx",
+      "bytes": 419120483,
+      "sha256": "5cde664eacba07a62f198857ec6c06e09572b1ebb77c8137f1fa99ac604a3a28"
+    },
+    {
+      "path": "sentencepiece.bpe.model",
+      "bytes": 4852054,
+      "sha256": "14bb8dfb35c0ffdea7bc01e56cea38b9e3d5efcdcb9c251d6b40538e1aab555a"
+    }
+  ]
+}

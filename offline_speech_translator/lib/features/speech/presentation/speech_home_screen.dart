@@ -5,9 +5,15 @@ import 'package:flutter/services.dart';
 import '../data/local_whisper_speech_service.dart';
 import '../application/live_recognition.dart';
 import 'live_caption_card.dart';
+import '../../translation/application/translation_controller.dart';
+import '../../translation/data/local_translation_service.dart';
+import '../../translation/domain/translation.dart';
 
 class SpeechHomeScreen extends StatefulWidget {
-  const SpeechHomeScreen({super.key});
+  const SpeechHomeScreen({super.key, this.speech, this.translator, this.voice});
+  final LocalWhisperSpeechService? speech;
+  final TranslationService? translator;
+  final SpeechOutput? voice;
 
   @override
   State<SpeechHomeScreen> createState() => _SpeechHomeScreenState();
@@ -17,7 +23,19 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
     with WidgetsBindingObserver {
   final GlobalKey _captionKey = GlobalKey();
   final TextEditingController _transcriptEditor = TextEditingController();
-  final LocalWhisperSpeechService _speech = LocalWhisperSpeechService();
+  late final LocalWhisperSpeechService _speech;
+  late final TranslationController _translation;
+  LocalTranslationService? _localTranslation;
+  StreamSubscription<double>? _translationDownload;
+  bool _translationInstalled = false;
+  bool _checkingTranslation = true;
+  bool _installingTranslation = false;
+  double? _translationProgress;
+  String? _translationSetupError;
+  bool _noiseSuppression = false;
+  int? _translationRecording;
+  String? _audioNotice;
+  bool get _tagalogSource => _translation.source == TranslationLanguage.tagalog;
   StreamSubscription<int>? _recognitionProgressUpdates;
   StreamSubscription<LiveRecognitionSnapshot>? _liveSubscription;
   StreamSubscription<void>? _recordingEnded;
@@ -28,7 +46,12 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
   Timer? _recordingTicker;
   Stopwatch? _recordingStopwatch;
 
+  bool _cebuanoInstalled = false;
+  bool _mixedSpeech = false;
+  bool get _useCebuanoModel => !_tagalogSource || _mixedSpeech;
+  bool get _canRecord => _useCebuanoModel ? _cebuanoInstalled : _modelInstalled;
   bool _preferAccuracy = false;
+  bool _chooseInitialSpeechModel = true;
   String _resultModelLabel = 'Whisper tiny';
   bool _checkingModel = true;
   bool _modelInstalled = false;
@@ -52,11 +75,20 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
       _loadingModel ||
       _recording ||
       _finishing ||
+      _installingTranslation ||
       _cancelling;
 
   @override
   void initState() {
     super.initState();
+    _speech = widget.speech ?? LocalWhisperSpeechService();
+    final translator = widget.translator ?? LocalTranslationService();
+    if (translator is LocalTranslationService) _localTranslation = translator;
+    _translation = TranslationController(
+      translator: translator,
+      voice: widget.voice ?? DeviceSpeechOutput(),
+    )..addListener(_translationChanged);
+    unawaited(_checkTranslation());
     WidgetsBinding.instance.addObserver(this);
     _liveSubscription = _speech.liveUpdates.listen((snapshot) {
       if (!mounted || !_recording || _cancelling) return;
@@ -74,8 +106,88 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
     _refreshModelStatus();
   }
 
+  void _translationChanged() {
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _checkTranslation() async {
+    try {
+      final installed = await _localTranslation?.isInstalled() ?? true;
+      if (mounted) setState(() => _translationInstalled = installed);
+    } on MissingPluginException {
+      if (mounted) {
+        _translationSetupError =
+            'Offline translation and device voices currently require Android.';
+      }
+    } catch (error) {
+      if (mounted) {
+        _translationSetupError = 'Could not verify translation models: $error';
+      }
+    } finally {
+      if (mounted) setState(() => _checkingTranslation = false);
+    }
+  }
+
+  Future<void> _installTranslation() async {
+    if (_busy || _localTranslation == null) return;
+    setState(() {
+      _installingTranslation = true;
+      _translationSetupError = null;
+      _translationProgress = 0;
+    });
+    _translationDownload = _localTranslation!.downloadProgress.listen((
+      fraction,
+    ) {
+      if (mounted) setState(() => _translationProgress = fraction);
+    }, onError: (Object _) {});
+    try {
+      _speech.releaseModel();
+      await _localTranslation!.install();
+      if (mounted) setState(() => _translationInstalled = true);
+    } catch (error) {
+      if (mounted) {
+        setState(
+          () => _translationSetupError = 'Translation setup failed: $error',
+        );
+      }
+    } finally {
+      await _translationDownload?.cancel();
+      _translationDownload = null;
+      if (mounted) setState(() => _installingTranslation = false);
+    }
+  }
+
+  void _selectDirection(TranslationLanguage source) {
+    if (_busy || source == _translation.source) return;
+    _translation.selectSource(source);
+    setState(() {
+      _inputLanguage = source.voiceCode;
+      _transcript = '';
+      _rawTranscript = '';
+      _audioNotice = null;
+      _error = null;
+      _recognitionDuration = null;
+      _recordingDuration = Duration.zero;
+    });
+  }
+
+  Future<void> _translate() async {
+    if (_busy) return;
+    _speech.releaseModel();
+    await _translation.translate();
+  }
+
   Future<void> _refreshModelStatus() async {
     try {
+      _cebuanoInstalled = await _speech.findCebuanoModel() != null;
+      if (_chooseInitialSpeechModel) {
+        _chooseInitialSpeechModel = false;
+        final base = await _speech.findInstalledModel(preferAccuracy: true);
+        if (!mounted) return;
+        if (base?.uri.pathSegments.last == 'ggml-base-q5_1.bin') {
+          _preferAccuracy = true;
+        }
+      }
       final file = await _speech.findInstalledModel(
         preferAccuracy: _preferAccuracy,
       );
@@ -97,6 +209,23 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
         _error =
             'The saved speech model could not be verified. Install it again.';
       });
+    }
+  }
+
+  Future<void> _importCebuano() async {
+    if (_busy) return;
+    setState(() {
+      _installingModel = true;
+      _error = null;
+    });
+    try {
+      _speech.releaseModel();
+      await _speech.importCebuanoModel();
+      await _refreshModelStatus();
+    } catch (error) {
+      if (mounted) setState(() => _error = _friendlyError(error));
+    } finally {
+      if (mounted) setState(() => _installingModel = false);
     }
   }
 
@@ -138,7 +267,7 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
   }
 
   Future<void> _startRecording() async {
-    if (!_modelInstalled || _busy) return;
+    if (!_canRecord || _busy) return;
     final requestId = ++_requestId;
     _live = const LiveRecognitionSnapshot();
     _stopRecordingClock(reset: true);
@@ -146,18 +275,28 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
       _loadingModel = true;
       _error = null;
       _transcript = '';
+      _rawTranscript = '';
+      _audioNotice = null;
       _recordingDuration = Duration.zero;
       _recognitionDuration = null;
       _recognitionProgress = null;
     });
 
     try {
+      _translationRecording = await _translation.beginRecording();
+      if (!mounted || requestId != _requestId) return;
       await _speech.startRecording(
         language: _inputLanguage,
         preferAccuracy: _preferAccuracy,
-        livePreview: _liveEnabled,
+        livePreview: _liveEnabled && !_useCebuanoModel,
+        noiseSuppression: _noiseSuppression,
+        cebuano: _useCebuanoModel,
       );
-      _resultModelLabel = _fastModelInstalled ? 'Whisper tiny' : 'Whisper base';
+      _resultModelLabel = _useCebuanoModel
+          ? 'Cebuano Small'
+          : (_preferAccuracy
+                ? 'Whisper base'
+                : (_fastModelInstalled ? 'Whisper tiny' : 'Whisper base'));
       if (!mounted || requestId != _requestId) {
         await _speech.cancelTranscription();
         return;
@@ -165,9 +304,10 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
       setState(() {
         _loadingModel = false;
         _recording = true;
+        _audioNotice = _speech.noiseNotice;
       });
       _startRecordingClock();
-      if (_liveEnabled) {
+      if (_liveEnabled && !_useCebuanoModel) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           final captionContext = _captionKey.currentContext;
           if (mounted && _recording && captionContext != null) {
@@ -185,6 +325,7 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
       _stopRecordingClock(reset: true);
       await _speech.cancelTranscription();
       if (!mounted || requestId != _requestId) return;
+      _translation.cancelRecording();
       setState(() {
         _loadingModel = false;
         _recording = false;
@@ -217,10 +358,21 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
         _recognitionDuration = recognitionClock.elapsed;
         _recognitionProgress = 1;
         _finishing = false;
+        _audioNotice = _speech.diagnostics.notice ?? _speech.noiseNotice;
       });
+      if ((_inputLanguage == 'tl' || _inputLanguage == 'ceb') &&
+          _translationRecording != null) {
+        _speech.releaseModel();
+        unawaited(
+          _translation.acceptFinal(_translationRecording!, _transcript),
+        );
+      } else {
+        _translation.cancelRecording();
+      }
     } catch (error) {
       recognitionClock.stop();
       if (!mounted || requestId != _requestId) return;
+      _translation.cancelRecording();
       setState(() {
         _finishing = false;
         _recognitionDuration = recognitionClock.elapsed;
@@ -233,6 +385,7 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
   Future<void> _cancelRecording() async {
     if (_cancelling || (!_recording && !_loadingModel && !_finishing)) return;
     ++_requestId;
+    _translation.cancelRecording();
     _stopRecordingClock(reset: true);
     setState(() => _cancelling = true);
     Object? cancellationError;
@@ -295,19 +448,25 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
     return 'Speech recognition could not start. ${error.toString()}';
   }
 
-  Future<void> _editTranscript() async {
+  Future<void> _editTranscript({bool enterText = false}) async {
     final controller = _transcriptEditor;
-    controller.text = _transcript;
+    controller.text = enterText ? '' : _transcript;
     final edited = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Review transcription'),
+        title: Text(
+          enterText
+              ? 'Enter ${_translation.source.label} text'
+              : 'Review transcription',
+        ),
         content: TextField(
           controller: controller,
           autofocus: true,
           minLines: 3,
           maxLines: 8,
-          decoration: const InputDecoration(labelText: 'What you said'),
+          decoration: InputDecoration(
+            labelText: enterText ? _translation.source.label : 'What you said',
+          ),
         ),
         actions: [
           TextButton(
@@ -322,8 +481,20 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
       ),
     );
     if (!mounted) return;
-    if (edited != null && edited.trim().isNotEmpty) {
-      setState(() => _transcript = edited.trim());
+    if (edited != null) {
+      setState(() {
+        _transcript = edited.trim();
+        if (enterText) {
+          _inputLanguage = _translation.source.voiceCode;
+          _rawTranscript = '';
+          _recordingDuration = Duration.zero;
+          _recognitionDuration = null;
+          _audioNotice = null;
+        }
+      });
+      if (enterText || _inputLanguage == _translation.source.voiceCode) {
+        _translation.edit(_transcript);
+      }
     }
   }
 
@@ -338,14 +509,20 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused && (_recording || _finishing)) {
-      unawaited(_cancelRecording());
+    if (state == AppLifecycleState.paused) {
+      unawaited(_translation.stopPlayback());
+      if (_recording || _finishing || _loadingModel) {
+        unawaited(_cancelRecording());
+      }
     }
   }
 
   @override
   void dispose() {
     ++_requestId;
+    _translation.removeListener(_translationChanged);
+    _translation.dispose();
+    _translationDownload?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _liveSubscription?.cancel();
     _recordingEnded?.cancel();
@@ -373,35 +550,59 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
                   const SizedBox(height: 20),
                   _buildLanguageCard(colors),
                   const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    initialValue: _inputLanguage,
-                    decoration: const InputDecoration(
-                      labelText: 'Recognition language',
+                  if (_tagalogSource)
+                    DropdownButtonFormField<String>(
+                      isExpanded: true,
+                      key: ValueKey(_inputLanguage),
+                      initialValue: _inputLanguage,
+                      decoration: const InputDecoration(
+                        labelText: 'Recognition language',
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'tl',
+                          child: Text('Tagalog / Filipino'),
+                        ),
+                        DropdownMenuItem(value: 'en', child: Text('English')),
+                        DropdownMenuItem(
+                          value: 'auto',
+                          child: Text(
+                            'Auto-detect · experimental',
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                      onChanged: _busy
+                          ? null
+                          : (value) {
+                              if (value != null) {
+                                _translation.edit('');
+                                setState(() {
+                                  _inputLanguage = value;
+                                  _transcript = '';
+                                  _rawTranscript = '';
+                                });
+                              }
+                            },
                     ),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'tl',
-                        child: Text('Tagalog / Filipino'),
-                      ),
-                      DropdownMenuItem(value: 'en', child: Text('English')),
-                      DropdownMenuItem(
-                        value: 'auto',
-                        child: Text('Auto-detect · experimental'),
-                      ),
-                    ],
-                    onChanged: _busy
-                        ? null
-                        : (value) {
-                            if (value != null) {
-                              setState(() => _inputLanguage = value);
-                            }
-                          },
-                  ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Cebuano / Bisaya recognition needs a separate validated model. '
-                    'Auto-detect does not add support for every Philippine language.',
-                    style: TextStyle(fontSize: 12, color: Color(0xFF71807A)),
+                  Text(
+                    _tagalogSource
+                        ? 'English and auto-detect remain recognition-only modes. Use Tagalog input for automatic translation.'
+                        : (_cebuanoInstalled
+                              ? 'Cebuano voice uses the trained Small model after Finish. English mixing is experimental; recognition takes longer.'
+                              : 'Import the Cebuano speech model to enable voice input, or enter Cebuano text below.'),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF71807A),
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: _busy
+                        ? null
+                        : () => _editTranscript(enterText: true),
+                    icon: const Icon(Icons.keyboard_outlined),
+                    label: Text('Enter ${_translation.source.label} text'),
                   ),
                   const SizedBox(height: 18),
                   SwitchListTile(
@@ -409,18 +610,28 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
                     subtitle: const Text(
                       'Words appear as recognition completes. Uses more battery.',
                     ),
-                    value: _liveEnabled,
-                    onChanged: _busy
+                    value: _liveEnabled && !_useCebuanoModel,
+                    onChanged: _busy || _useCebuanoModel
                         ? null
                         : (value) => setState(() => _liveEnabled = value),
                   ),
                   SwitchListTile(
+                    title: const Text('Reduce background noise · experimental'),
+                    subtitle: const Text(
+                      'Uses device suppression when available. Off preserves the original audio path; compare results on your phone.',
+                    ),
+                    value: _noiseSuppression,
+                    onChanged: _busy
+                        ? null
+                        : (value) => setState(() => _noiseSuppression = value),
+                  ),
+                  SwitchListTile(
                     title: const Text('Refine with Whisper Base'),
                     subtitle: const Text(
-                      'Fast model for live text; larger model reviews after Finish. Requires both downloads for fastest previews.',
+                      'Selected when Base is installed. Uses Tiny for live text and Base after Finish. More accurate in our Tagalog samples, but slower.',
                     ),
-                    value: _preferAccuracy,
-                    onChanged: _busy
+                    value: _preferAccuracy && !_useCebuanoModel,
+                    onChanged: _busy || _useCebuanoModel
                         ? null
                         : (value) async {
                             setState(() {
@@ -431,9 +642,40 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
                             await _refreshModelStatus();
                           },
                   ),
-                  if (!_modelInstalled || _installingModel || _checkingModel)
+                  SwitchListTile(
+                    title: const Text('Cebuano / mixed speech · experimental'),
+                    subtitle: Text(
+                      _cebuanoInstalled
+                          ? 'Uses Cebuano Small after Finish. Cebuano–English is the training focus; Tagalog mixing is not yet validated.'
+                          : 'Requires the converted 190 MB research model. Import it below.',
+                    ),
+                    value: _useCebuanoModel,
+                    onChanged: _busy || !_tagalogSource || !_cebuanoInstalled
+                        ? null
+                        : (value) => setState(() => _mixedSpeech = value),
+                  ),
+                  TextButton.icon(
+                    onPressed: _busy ? null : _importCebuano,
+                    icon: const Icon(Icons.file_open_outlined),
+                    label: Text(
+                      _cebuanoInstalled
+                          ? 'Replace Cebuano speech model'
+                          : 'Import Cebuano speech model',
+                    ),
+                  ),
+                  if (_tagalogSource &&
+                      !_useCebuanoModel &&
+                      (!_modelInstalled || _installingModel || _checkingModel))
                     _buildModelCard(colors),
-                  if (_modelInstalled) _buildRecorderCard(colors),
+                  if (_canRecord) _buildRecorderCard(colors),
+                  if (_audioNotice != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Text(
+                        _audioNotice!,
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
                   if (_error != null) ...[
                     const SizedBox(height: 14),
                     _buildError(colors),
@@ -446,7 +688,7 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
                     ),
                   ],
                   const SizedBox(height: 14),
-                  _buildTranslationPlaceholder(colors),
+                  _buildTranslationCard(colors),
                   const SizedBox(height: 22),
                   _buildPrivacyNote(colors),
                 ],
@@ -520,7 +762,7 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
         ),
         SizedBox(height: 8),
         Text(
-          'Speak Tagalog. Get closer in Cebuano.',
+          'Tagalog and Cebuano, in either direction.',
           style: TextStyle(color: Color(0xFF71807A), fontSize: 15),
         ),
       ],
@@ -534,16 +776,23 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
         child: Row(
           children: [
             Expanded(
-              child: _LanguageTile(
-                label: 'FROM',
-                language: _inputLanguage == 'tl'
-                    ? 'Tagalog'
-                    : _inputLanguage == 'en'
-                    ? 'English'
-                    : 'Auto-detect',
-                code: _inputLanguage == 'tl'
-                    ? 'FIL'
-                    : _inputLanguage.toUpperCase(),
+              child: PopupMenuButton<TranslationLanguage>(
+                tooltip: 'Choose source language',
+                enabled: !_busy,
+                onSelected: _selectDirection,
+                itemBuilder: (_) => TranslationLanguage.values
+                    .map(
+                      (language) => PopupMenuItem(
+                        value: language,
+                        child: Text(language.label),
+                      ),
+                    )
+                    .toList(),
+                child: _LanguageTile(
+                  label: 'FROM',
+                  language: _translation.source.label,
+                  code: _tagalogSource ? 'FIL' : 'CEBUANO',
+                ),
               ),
             ),
             Container(
@@ -553,13 +802,19 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
                 color: const Color(0xFFF0F5F1),
                 borderRadius: BorderRadius.circular(15),
               ),
-              child: Icon(Icons.arrow_forward_rounded, color: colors.primary),
+              child: IconButton(
+                tooltip: 'Swap languages and clear text',
+                onPressed: _busy
+                    ? null
+                    : () => _selectDirection(_translation.target),
+                icon: Icon(Icons.swap_horiz_rounded, color: colors.primary),
+              ),
             ),
-            const Expanded(
+            Expanded(
               child: _LanguageTile(
                 label: 'TO',
-                language: 'Bisaya',
-                code: 'CEBUANO',
+                language: _translation.target.label,
+                code: _tagalogSource ? 'CEBUANO' : 'FIL',
               ),
             ),
           ],
@@ -643,7 +898,7 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
-                  onPressed: _installModel,
+                  onPressed: _busy ? null : _installModel,
                   icon: const Icon(Icons.download_rounded),
                   label: Text(
                     _preferAccuracy
@@ -823,7 +1078,7 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
                 button: true,
                 label: 'Start recording',
                 child: InkWell(
-                  onTap: _startRecording,
+                  onTap: _busy ? null : _startRecording,
                   customBorder: const CircleBorder(),
                   child: Container(
                     width: 76,
@@ -892,10 +1147,17 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
           children: [
             Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'Recognized speech',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                    'Source · ${_inputLanguage == 'en'
+                        ? 'English'
+                        : _inputLanguage == 'auto'
+                        ? 'Auto-detected'
+                        : _translation.source.label}',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
                 if (_transcript.isNotEmpty && !_busy)
@@ -914,7 +1176,7 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
               ],
             ),
             const SizedBox(height: 4),
-            if ((_recording || _finishing) && _liveEnabled)
+            if ((_recording || _finishing) && _liveEnabled && !_useCebuanoModel)
               LiveCaptionCard(snapshot: _live, finalizing: _finishing)
             else if (_transcript.isEmpty && _finishing)
               const Text(
@@ -944,7 +1206,8 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
               const Text(
                 'Review names and unclear words before using this text.',
               ),
-              if (_transcript != _rawTranscript.trim())
+              if (_rawTranscript.isNotEmpty &&
+                  _transcript != _rawTranscript.trim())
                 ExpansionTile(
                   title: const Text('Original recognition · edited above'),
                   children: [SelectableText(_rawTranscript)],
@@ -952,8 +1215,10 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
             ],
             const SizedBox(height: 10),
             Text(
-              '$_resultModelLabel · ${_formatDuration(_recordingDuration)}'
-              '${_recognitionDuration == null ? '' : ' · recognized in ${(_recognitionDuration!.inMilliseconds / 1000).toStringAsFixed(1)}s'}',
+              _rawTranscript.isEmpty && _transcript.isNotEmpty
+                  ? 'Entered source text'
+                  : '$_resultModelLabel · ${_formatDuration(_recordingDuration)}'
+                        '${_recognitionDuration == null ? '' : ' · recognized in ${(_recognitionDuration!.inMilliseconds / 1000).toStringAsFixed(1)}s'}',
               style: const TextStyle(color: Color(0xFF89958F), fontSize: 11),
             ),
           ],
@@ -962,60 +1227,114 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
     );
   }
 
-  Widget _buildTranslationPlaceholder(ColorScheme colors) {
+  Widget _buildTranslationCard(ColorScheme colors) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(17),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    'Bisaya · Cebuano',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                  ),
+            Text(
+              'Translation · ${_translation.target.label}',
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 10),
+            if (_checkingTranslation) ...[
+              const LinearProgressIndicator(),
+              const Text('Checking translation model…'),
+            ] else if (!_translationInstalled || _installingTranslation) ...[
+              const Text(
+                'Install offline translation · about 900 MB. NLLB research model, for noncommercial use. Setup needs internet and free storage.',
+              ),
+              if (_installingTranslation) ...[
+                const SizedBox(height: 10),
+                LinearProgressIndicator(value: _translationProgress),
+                Text(
+                  'Installing translation ${((_translationProgress ?? 0) * 100).round()}%',
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 9,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF2F4F2),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Text(
-                    'NEXT',
-                    style: TextStyle(
-                      color: Color(0xFF8A9690),
-                      fontSize: 9,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.6,
+              ] else
+                FilledButton.icon(
+                  onPressed: _busy ? null : _installTranslation,
+                  icon: const Icon(Icons.download_rounded),
+                  label: const Text('Install translation model'),
+                ),
+            ],
+            if (_translationSetupError != null)
+              Text(
+                _translationSetupError!,
+                style: TextStyle(color: colors.error),
+              ),
+            if (_translation.translating) ...[
+              const LinearProgressIndicator(),
+              const SizedBox(height: 8),
+              Text(
+                'Translating to ${_translation.target.label} on this device…',
+              ),
+            ] else if (_translation.translated.isNotEmpty) ...[
+              SelectableText(
+                _translation.translated,
+                style: const TextStyle(fontSize: 17, height: 1.5),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Review meaning, names and numbers. This model can omit or mistranslate details.',
+                style: TextStyle(fontSize: 12, color: Color(0xFF71807A)),
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                children: [
+                  FilledButton.tonalIcon(
+                    onPressed: _translation.playing
+                        ? _translation.stopPlayback
+                        : _translation.play,
+                    icon: Icon(
+                      _translation.playing
+                          ? Icons.stop_rounded
+                          : Icons.volume_up_outlined,
+                    ),
+                    label: Text(
+                      _translation.playing
+                          ? 'Stop playback'
+                          : 'Play translation',
                     ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Translation and Cebuano voice are coming in the next build stage.',
-              style: TextStyle(
-                color: Color(0xFF7A8781),
-                fontSize: 14,
-                height: 1.45,
+                  IconButton(
+                    tooltip: 'Copy translation',
+                    onPressed: () => Clipboard.setData(
+                      ClipboardData(text: _translation.translated),
+                    ),
+                    icon: const Icon(Icons.copy_rounded),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 12),
-            const Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _StageChip(label: '1  Speech recognition', complete: true),
-                _StageChip(label: '2  Translation', complete: false),
-                _StageChip(label: '3  Spoken Cebuano', complete: false),
-              ],
+            ] else if (_translationInstalled)
+              const Text(
+                'Finish a recording or enter source text to translate.',
+              ),
+            if (_translation.error != null) ...[
+              const SizedBox(height: 8),
+              Text(_translation.error!, style: TextStyle(color: colors.error)),
+            ],
+            if (_translation.transcript.isNotEmpty)
+              TextButton.icon(
+                onPressed:
+                    _busy || _translation.translating || !_translationInstalled
+                    ? null
+                    : _translate,
+                icon: const Icon(Icons.translate_rounded),
+                label: Text(
+                  _translation.error == null
+                      ? 'Translate source text'
+                      : 'Retry translation',
+                ),
+              ),
+            if (_translation.voiceNotice != null)
+              Text(_translation.voiceNotice!),
+            const SizedBox(height: 6),
+            const Text(
+              'Playback uses an installed offline voice for the target language when available.',
+              style: TextStyle(fontSize: 12, color: Color(0xFF71807A)),
             ),
           ],
         ),
@@ -1031,7 +1350,7 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
         const SizedBox(width: 8),
         const Expanded(
           child: Text(
-            'Speech recognition runs on this device after setup. Audio is not sent to a server.',
+            'Speech recognition and translation run on this device after model setup. Audio and text are not sent to a server.',
             style: TextStyle(
               color: Color(0xFF71807A),
               fontSize: 12,
@@ -1131,30 +1450,6 @@ class _StatusBadge extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _StageChip extends StatelessWidget {
-  const _StageChip({required this.label, required this.complete});
-
-  final String label;
-  final bool complete;
-
-  @override
-  Widget build(BuildContext context) {
-    final bg = complete ? const Color(0xFFE5F3ED) : const Color(0xFFF2F4F2);
-    final fg = complete ? const Color(0xFF187C70) : const Color(0xFF8A9690);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(color: fg, fontSize: 11, fontWeight: FontWeight.w600),
       ),
     );
   }

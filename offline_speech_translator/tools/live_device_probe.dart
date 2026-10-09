@@ -10,6 +10,8 @@ import 'package:offline_speech_translator/features/speech/data/local_whisper_spe
 import 'package:offline_speech_translator/features/speech/data/speech_capture.dart';
 import 'package:offline_speech_translator/features/speech/application/live_recognition.dart';
 import 'package:offline_speech_translator/features/speech/presentation/live_caption_card.dart';
+import 'package:offline_speech_translator/features/translation/data/local_translation_service.dart';
+import 'package:offline_speech_translator/features/translation/domain/translation.dart';
 
 const root =
     '/data/user/0/com.example.offline_speech_translator/files/evaluation';
@@ -20,6 +22,7 @@ const audioName = String.fromEnvironment(
 const useBase = bool.fromEnvironment('ASR_TEST_BASE');
 const withPreview = bool.fromEnvironment('ASR_TEST_LIVE', defaultValue: true);
 const cancelTest = bool.fromEnvironment('ASR_TEST_CANCEL');
+const withTranslation = bool.fromEnvironment('ASR_TEST_TRANSLATE');
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -132,6 +135,16 @@ class _ProbeState extends State<Probe> {
             .where((u) => (u['text'] as String).trim().isNotEmpty)
             .firstOrNull?['at_ms'],
       });
+      if (withTranslation) {
+        service.releaseModel();
+        final translationClock = Stopwatch()..start();
+        report['translation'] = await LocalTranslationService().translate(
+          result.text,
+          TranslationLanguage.tagalog,
+          TranslationLanguage.cebuano,
+        );
+        report['translation_ms'] = translationClock.elapsedMilliseconds;
+      }
       if (mounted) {
         setState(() {
           status = 'Finished';

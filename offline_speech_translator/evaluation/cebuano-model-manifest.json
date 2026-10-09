@@ -1,0 +1,37 @@
+{
+  "repository": "eemberda/phcodeswitch-ceb-dvo",
+  "revision": "3a6999b22f5ebd754a25ce59c54897e2ac1e930d",
+  "files": [
+    {
+      "path": "model.safetensors",
+      "bytes": 966995080,
+      "sha256": "6c2bc3696905b5fbddce5687b7bcfec15d841d8b6530a9602a2e90d8249559d7"
+    },
+    {
+      "path": "config.json",
+      "bytes": 2340,
+      "sha256": "aa10e8f3aba702ca9d60e94b6a4b438b26ca9a1d9735bf3059ea688e59ad50d8"
+    },
+    {
+      "path": "tokenizer.json",
+      "bytes": 3930494,
+      "sha256": "7b469ff15eb7816315aa45eec391f5943d639b9d73d110f5c003df5192fd54e3"
+    },
+    {
+      "path": "preprocessor_config.json",
+      "bytes": 329,
+      "sha256": "3e4dc53c73e7e3954fc4435034f5027733c61d7c123b38bbd1461598fd8503ef"
+    },
+    {
+      "path": "generation_config.json",
+      "bytes": 4864,
+      "sha256": "8041fa6697d71af36e22e8d4d9126731768c7d2dcc46ccf0694ac56d771d2f8a"
+    }
+  ],
+  "derivative": {
+    "path": "ggml-cebuano-small-q5_1.bin",
+    "bytes": 190085487,
+    "sha256": "43b3973c2baaff647a92619102c24e3dd0ed1f0e00993b7e3ecd68231dfc587f",
+    "license": "CC-BY-NC-4.0"
+  }
+}

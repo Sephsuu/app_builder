@@ -1,0 +1,47 @@
+{
+  "platform": "android",
+  "voices": {
+    "tl": false,
+    "ceb": false
+  },
+  "installed": true,
+  "translations": [
+    {
+      "source": "tgl_Latn",
+      "target": "ceb_Latn",
+      "input": "Kumusta ka?",
+      "output": "Kumusta ka?",
+      "elapsed_ms": 14800
+    },
+    {
+      "source": "ceb_Latn",
+      "target": "tgl_Latn",
+      "input": "Asa si Maria?",
+      "output": "Saan si Maria?",
+      "elapsed_ms": 11648
+    },
+    {
+      "source": "tgl_Latn",
+      "target": "ceb_Latn",
+      "input": "Hindi ako pupunta sa Mayo 12.",
+      "output": "Dili ako moadto sa Mayo 12.",
+      "elapsed_ms": 14805
+    },
+    {
+      "source": "ceb_Latn",
+      "target": "tgl_Latn",
+      "input": "Dili ko gusto og kape.",
+      "output": "Hindi ako nagustuhan ng kape.",
+      "elapsed_ms": 17827
+    }
+  ],
+  "cancellation": {
+    "outcome": "cancelled",
+    "fence_ms": 231,
+    "retry_output": "Saan si Maria?"
+  },
+  "scope": "Samsung Galaxy A16 SM-A165F, Android 16, ARM64; mobile sliced graph",
+  "network": "Phone radio settings unchanged; model inference is local",
+  "sampled_peak_pss_kb": 905625,
+  "memory_sampling": "dumpsys meminfo approximately every second; may miss peaks"
+}

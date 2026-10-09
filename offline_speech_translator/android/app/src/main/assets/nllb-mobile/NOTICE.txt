@@ -1,0 +1,16 @@
+Mobile NLLB graph assets
+
+Derived from Meta's NLLB-200 distilled 600M and the Xenova ONNX export at
+revision 261c31d1a5732c67cdd16d80e8d6088507c7ccea.
+https://huggingface.co/facebook/nllb-200-distilled-600M
+https://huggingface.co/Xenova/nllb-200-distilled-600M
+
+Model license: Creative Commons Attribution-NonCommercial 4.0 International.
+https://creativecommons.org/licenses/by-nc/4.0/legalcode
+For the approved noncommercial research/demo use. Retain this attribution.
+
+Changes: graph initializers reference byte ranges in the original downloaded
+files; vocabulary projection runs in ordered 8192-row slices. Original model
+weights, quantization scales, tokenizer and language identifiers are unchanged.
+Generate these assets using tools/prepare_mobile_nllb.py. ConstantFolding must
+remain disabled in ONNX Runtime to preserve the bounded-memory execution.
