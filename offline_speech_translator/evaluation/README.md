@@ -1,5 +1,8 @@
 # Accuracy audit and evaluation gate
 
+This is the original pre-live-caption audit. Current behavior and the first
+public Filipino measurements are in [adaptive live captions](../benchmarks/adaptive-live-captions.md).
+
 ## Phase 1: audited baseline
 
 This checkout implements ASR only. `SpeechHomeScreen` calls
@@ -109,7 +112,7 @@ unsupported languages as working choices simply by assigning them Tagalog codes.
 
 ## Optional Base comparison
 
-“Try a larger speech model” selects the pinned multilingual Base Q5_1 descriptor
+“Refine with Whisper Base” selects the pinned multilingual Base Q5_1 descriptor
 already present in the project. If it is missing, the app requires its explicit
 verified download instead of silently using Tiny. Downloads retain both models;
 switching unloads the previous engine. The choice is session-only and defaults to

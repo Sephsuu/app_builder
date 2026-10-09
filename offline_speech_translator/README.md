@@ -10,7 +10,7 @@ Sulti is an Android-first Flutter app for translating spoken Tagalog into spoken
 | Translation | `facebook/nllb-200-distilled-600M`, `tgl_Latn` → `ceb_Latn` | Technically possible to export to ONNX and run with ONNX Runtime Mobile, but large for a phone. The checkpoint is research-oriented, marked CC-BY-NC-4.0, and explicitly not released for production deployment. Treat it as a research benchmark, not a shippable commercial model. |
 | Cebuano speech | `facebook/mms-tts-ceb` VITS checkpoint | A Cebuano checkpoint exists, but its published weights are PyTorch/Safetensors rather than a ready Android runtime model. ONNX export, operator coverage, memory, latency, and speech quality need to be measured on device. It is also CC-BY-NC-4.0. |
 
-The app prefers the quantized multilingual Whisper tiny model, pinned to an immutable Hugging Face revision and checked against its SHA-256 before acceptance. Tiny is selected to reduce latency on the target phone, with a possible Tagalog accuracy trade-off. An already installed multilingual base model remains usable. The “Try a larger speech model” switch selects Base Q5_1 as an optional accuracy candidate; download it once when prompted. Both files are retained for offline comparison, and only one model is loaded at a time. The switch defaults to Tiny on each app launch. Base accuracy and latency still require measurement on your Tagalog speech; this is not a proven accuracy upgrade. Microphone audio and ASR inference remain on the phone after model installation.
+The app prefers the quantized multilingual Whisper tiny model, pinned to an immutable Hugging Face revision and checked against its SHA-256 before acceptance. Tiny is selected to reduce latency on the target phone, with a possible Tagalog accuracy trade-off. An already installed multilingual base model remains usable. The “Refine with Whisper Base” switch selects Base Q5_1 for optional final review; download it once when prompted. Both files are retained for offline comparison. Live captions use the faster installed model; enabling Base refinement swaps to Base after Finish, with only one model loaded at a time. The switch defaults to Tiny on each app launch. Base accuracy and latency still require measurement on your Tagalog speech; this is not a proven accuracy upgrade. Microphone audio and ASR inference remain on the phone after model installation.
 
 For translation research, export NLLB as an encoder-decoder ONNX model, retain its tokenizer assets, set source language `tgl_Latn`, and force the generated language token to `ceb_Latn`. Test CPU first; then try Android XNNPACK or NNAPI on the actual target hardware. Track the packaged model size, peak process memory, cold start, and sentence latency. If it is too slow or memory-heavy, the practical product direction is a smaller Tagalog–Cebuano model trained or distilled for this pair under a license suitable for the intended use.
 
@@ -37,8 +37,9 @@ The presentation layer depends on small speech, translation, and voice interface
 - Material 3 single-screen Flutter application with Tagalog → Bisaya (Cebuano) language display.
 - Explicit, one-time model installation with byte progress and a pinned SHA-256.
 - Local microphone recording, a recording timer, finish/cancel controls, a final transcription progress indicator, and copyable Tagalog text.
-- Captured audio is decoded once after **Finish**, avoiding repeated model passes over long recordings.
-- Tagalog is explicitly selected for Whisper (`tl`); the audio is not uploaded.
+- Optional live captions use overlapping audio windows with a serial inference queue and measured cooldown. Finish runs a separate full-recording pass. See [live-caption verification](benchmarks/adaptive-live-captions.md).
+- Tagalog is the default (`tl`), with English and experimental automatic language detection available. Cebuano/Bisaya needs a separately validated model; see [regional candidates](evaluation/regional-language-candidates.md). Audio is not uploaded.
+- Recording automatically finishes after five minutes to bound audio memory. Live preview can be disabled before recording; slow preview inference pauses itself while final recognition remains available.
 - Model corruption, network failures during setup, microphone permission errors, model-loading state, and inference errors are surfaced in the UI.
 - Translation and TTS appear as clearly marked future stages. The interface does not claim that the whole pipeline is offline yet.
 
@@ -55,7 +56,7 @@ lib/
             └── speech_home_screen.dart
 ```
 
-`LocalWhisperSpeechService` owns model storage, model loading, audio capture, one-pass transcription after recording, cancellation, and native resource disposal. The presentation layer displays the states and results. Translation and TTS can be added behind similarly narrow service interfaces in later stages.
+`LocalWhisperSpeechService` owns model storage, model loading, audio capture, live preview and final transcription after recording, cancellation, and native resource disposal. The presentation layer displays the states and results. Translation and TTS can be added behind similarly narrow service interfaces in later stages.
 
 ## Dependencies and Android setup
 

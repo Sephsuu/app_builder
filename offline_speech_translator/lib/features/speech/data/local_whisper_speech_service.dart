@@ -5,13 +5,29 @@ import 'dart:typed_data';
 import 'package:whisper_cpp_flutter_plus/whisper_cpp_flutter_plus.dart';
 
 import '../domain/audio_validation.dart';
+import '../application/live_recognition.dart';
+import 'speech_capture.dart';
 
 /// Device-local Tagalog speech recognition backed by whisper.cpp.
 ///
 /// Tiny Q5_1 favors speed; Base Q5_1 is an optional accuracy candidate. Audio
-/// is collected during recording and transcribed once when the user finishes,
-/// avoiding repeated decoding of the same long recording.
+/// is previewed through serial rolling windows; Finish runs a separate final pass.
 class LocalWhisperSpeechService {
+  LocalWhisperSpeechService({SpeechCapture Function()? captureFactory})
+    : _captureFactory = captureFactory ?? MicrophoneCapture.new;
+  final SpeechCapture Function() _captureFactory;
+  static const maxRecordingSeconds = 300;
+  final _liveUpdates = StreamController<LiveRecognitionSnapshot>.broadcast();
+  final _recordingEnded = StreamController<void>.broadcast();
+  Stream<LiveRecognitionSnapshot> get liveUpdates => _liveUpdates.stream;
+  Stream<void> get recordingEnded => _recordingEnded.stream;
+  LiveRecognition? _preview;
+  Future<void>? _starting;
+  Future<void>? _cancelling;
+  Future<WhisperResult>? _finishing;
+  int _generation = 0;
+  bool _disposed = false;
+
   static const modelFileName = 'ggml-tiny-q5_1.bin';
   static const modelSizeLabel = 'about 32 MB';
   static const _legacyModelFileName = 'ggml-base-q5_1.bin';
@@ -48,7 +64,7 @@ class LocalWhisperSpeechService {
   WhisperEngine? _engine;
   String? _loadedModelPath;
   bool? _loadedAccuracyPreference;
-  WhisperRecorder? _recorder;
+  SpeechCapture? _recorder;
   WhisperTask? _activeTask;
   StreamSubscription<RecordingChunk>? _audioSubscription;
   Completer<void>? _audioDone;
@@ -56,6 +72,7 @@ class LocalWhisperSpeechService {
   StackTrace? _audioErrorStack;
   int _recordedSampleCount = 0;
   String _recordingLanguage = 'tl';
+  bool _finalPreferAccuracy = false;
 
   Stream<int> get recognitionProgress => _recognitionProgress.stream;
 
@@ -68,7 +85,11 @@ class LocalWhisperSpeechService {
   Stream<ModelDownloadProgress> installModel({
     bool preferAccuracy = false,
   }) async* {
-    if (_recorder != null || _activeTask != null) {
+    if (_recorder != null ||
+        _activeTask != null ||
+        _starting != null ||
+        _finishing != null ||
+        _cancelling != null) {
       throw StateError('Finish or cancel the current recording first.');
     }
     final descriptor = preferAccuracy ? _baseQ5Model : _tinyQ5Model;
@@ -121,144 +142,252 @@ class LocalWhisperSpeechService {
   Future<void> startRecording({
     String language = 'tl',
     bool preferAccuracy = false,
-  }) async {
+    bool livePreview = true,
+  }) {
+    if (_disposed ||
+        _starting != null ||
+        _finishing != null ||
+        _cancelling != null ||
+        _recorder != null) {
+      return Future.error(StateError('Speech recognition is busy.'));
+    }
     if (!const {'tl', 'en', 'auto'}.contains(language)) {
-      throw ArgumentError.value(language, 'language', 'Unsupported input mode');
+      return Future.error(
+        ArgumentError.value(language, 'language', 'Unsupported input mode'),
+      );
     }
-    if (_recorder != null || _activeTask != null) {
-      throw StateError('A transcription is already in progress.');
-    }
+    final generation = ++_generation;
+    final operation = _start(language, preferAccuracy, livePreview, generation);
+    _starting = operation;
+    return operation.whenComplete(() => _starting = null);
+  }
 
-    await loadModel(preferAccuracy: preferAccuracy);
+  Future<void> _start(
+    String language,
+    bool preferAccuracy,
+    bool livePreview,
+    int generation,
+  ) async {
+    _finalPreferAccuracy = preferAccuracy;
+    if (preferAccuracy && livePreview) {
+      if (await findInstalledModel(preferAccuracy: true) == null) {
+        throw StateError(
+          'Install Whisper Base before enabling final refinement.',
+        );
+      }
+      _checkGeneration(generation);
+    }
+    // Use the fast installed model for captions, then swap to Base only after
+    // stopping preview. Both native models are never resident simultaneously.
+    await loadModel(preferAccuracy: preferAccuracy && !livePreview);
+    _checkGeneration(generation);
     _recordingLanguage = language;
-    final recorder = WhisperRecorder();
+    final recorder = _captureFactory();
     _recorder = recorder;
-    _recordedChunks.clear();
-    _recordedSampleCount = 0;
-    _audioError = null;
-    _audioErrorStack = null;
-
+    _clearRecording();
     try {
       if (!await recorder.requestPermission()) {
         throw const WhisperException('Microphone permission was not granted');
       }
-
-      final audio = await recorder.start(
-        sampleRate: 16000,
-        chunkMilliseconds: 100,
-      );
+      _checkGeneration(generation);
+      final audio = await recorder.start();
+      _checkGeneration(generation);
+      if (livePreview) {
+        _preview = LiveRecognition(
+          infer: (samples, context) =>
+              _recognize(samples, preview: true, context: context),
+          cancelInference: () => _activeTask?.cancel(),
+          onUpdate: (update) {
+            if (generation == _generation && !_disposed) {
+              _liveUpdates.add(update);
+            }
+          },
+        );
+      }
       final done = Completer<void>();
       _audioDone = done;
       _audioSubscription = audio.listen(
         (chunk) {
-          if (chunk.sampleRate != 16000) {
-            _audioError = FormatException(
-              'Expected 16000 Hz audio, received ${chunk.sampleRate} Hz.',
-            );
-            _audioErrorStack = StackTrace.current;
-            return;
+          if (generation != _generation) return;
+          try {
+            if (chunk.sampleRate != 16000) {
+              throw FormatException(
+                'Expected 16000 Hz audio, received ${chunk.sampleRate} Hz.',
+              );
+            }
+            if (chunk.samples.any((s) => !s.isFinite || s.abs() > 1)) {
+              throw const FormatException(
+                'Invalid microphone audio. Record again.',
+              );
+            }
+            final remaining =
+                maxRecordingSeconds * 16000 - _recordedSampleCount;
+            if (remaining <= 0) return;
+            final samples = chunk.samples.length <= remaining
+                ? chunk.samples
+                : Float32List.sublistView(chunk.samples, 0, remaining);
+            _recordedChunks.add(samples);
+            _recordedSampleCount += samples.length;
+            _preview?.add(RecordingChunk(samples, 16000));
+            if (_recordedSampleCount >= maxRecordingSeconds * 16000) {
+              _recordingEnded.add(null);
+              unawaited(
+                recorder.stop().catchError((Object error, StackTrace stack) {
+                  _audioError = error;
+                  _audioErrorStack = stack;
+                }),
+              );
+            }
+          } catch (error, stack) {
+            _audioError = error;
+            _audioErrorStack = stack;
+            _recordingEnded.add(null);
           }
-          _recordedChunks.add(chunk.samples);
-          _recordedSampleCount += chunk.samples.length;
         },
-        onError: (Object error, StackTrace stackTrace) {
+        onError: (Object error, StackTrace stack) {
           _audioError = error;
-          _audioErrorStack = stackTrace;
+          _audioErrorStack = stack;
           if (!done.isCompleted) done.complete();
+          _recordingEnded.add(null);
         },
         onDone: () {
           if (!done.isCompleted) done.complete();
         },
-        cancelOnError: false,
       );
     } catch (_) {
-      _recorder = null;
       await recorder.stop();
+      await _closePreview();
+      _recorder = null;
       _clearRecording();
       rethrow;
     }
   }
 
-  Future<WhisperResult> stopRecordingAndTranscribe() async {
-    final recorder = _recorder;
-    if (recorder == null) throw StateError('There is no recording to stop.');
+  void _checkGeneration(int generation) {
+    if (_disposed || generation != _generation) {
+      throw StateError('Recording cancelled.');
+    }
+  }
 
-    WhisperTask? task;
+  Future<WhisperResult> _recognize(
+    Float32List samples, {
+    bool preview = false,
+    String? context,
+  }) async {
+    final task = _engine!.transcribe(
+      samples,
+      options: TranscribeOptions(
+        language: _recordingLanguage,
+        threads: 4,
+        greedyBestOf: 1,
+        tokenTimestamps: preview,
+        noTimestamps: !preview,
+        initialPrompt: context,
+        // Preview should not spend extra passes on random-temperature fallback.
+        // The authoritative final pass retains the baseline decoding settings.
+        temperatureIncrement: preview ? 0 : 0.2,
+      ),
+    );
+    _activeTask = task;
+    final progress = preview
+        ? null
+        : task.progress.listen(_recognitionProgress.add);
+    try {
+      return await task.result;
+    } finally {
+      await progress?.cancel();
+      if (identical(_activeTask, task)) _activeTask = null;
+    }
+  }
+
+  Future<WhisperResult> stopRecordingAndTranscribe() {
+    final pending = _finishing;
+    if (pending != null) return pending;
+    final recorder = _recorder;
+    if (recorder == null || _cancelling != null) {
+      return Future.error(StateError('There is no recording to stop.'));
+    }
+    final operation = _finish(recorder, _generation);
+    _finishing = operation;
+    return operation.whenComplete(() => _finishing = null);
+  }
+
+  Future<WhisperResult> _finish(SpeechCapture recorder, int generation) async {
     try {
       await recorder.stop();
       await _audioDone?.future;
-
-      final audioError = _audioError;
-      if (audioError != null) {
+      await _closePreview();
+      _checkGeneration(generation);
+      if (_audioError != null) {
         Error.throwWithStackTrace(
-          audioError,
+          _audioError!,
           _audioErrorStack ?? StackTrace.current,
         );
       }
-      if (_recordedSampleCount == 0) {
-        throw StateError('No microphone audio was captured. Try again.');
-      }
-
-      final engine = _engine;
-      if (engine == null) throw StateError('Speech model did not load.');
-
       final samples = Float32List(_recordedSampleCount);
       var offset = 0;
       for (final chunk in _recordedChunks) {
         samples.setRange(offset, offset + chunk.length, chunk);
         offset += chunk.length;
       }
-
+      _recordedChunks.clear();
       validateAudio(samples);
-
-      task = engine.transcribe(
-        samples,
-        options: TranscribeOptions(
-          language: _recordingLanguage,
-          threads: 4,
-          greedyBestOf: 1,
-          tokenTimestamps: false,
-          noTimestamps: true,
-        ),
-      );
-      _activeTask = task;
-      final progressSubscription = task.progress.listen(
-        _recognitionProgress.add,
-      );
-      try {
-        return await task.result;
-      } finally {
-        await progressSubscription.cancel();
-      }
+      await loadModel(preferAccuracy: _finalPreferAccuracy);
+      _checkGeneration(generation);
+      final result = await _recognize(samples);
+      _checkGeneration(generation);
+      return result;
     } finally {
-      _activeTask = null;
-      _recorder = null;
+      await _closePreview();
       await _audioSubscription?.cancel();
       _audioSubscription = null;
+      _recorder = null;
       _audioDone = null;
       _clearRecording();
     }
   }
 
-  Future<void> cancelTranscription() async {
-    final task = _activeTask;
-    _activeTask = null;
-    if (task != null) {
-      task.cancel();
-      try {
-        await task.result;
-      } catch (_) {
-        // Cancellation is expected to complete the task with an error.
-      }
-    }
+  Future<void> _closePreview() async {
+    final preview = _preview;
+    // Keep the reference while closing, so concurrent Finish/Cancel await the
+    // same native task before anyone can reuse or dispose its context.
+    if (preview == null) return;
+    await preview.close();
+    if (identical(_preview, preview)) _preview = null;
+  }
 
+  Future<void> cancelTranscription() =>
+      _cancelling ??= _cancel().whenComplete(() => _cancelling = null);
+  Future<void> _cancel() async {
+    ++_generation;
+    try {
+      await _starting;
+    } catch (_) {
+      /* A cancelled start is expected. */
+    }
     final recorder = _recorder;
-    _recorder = null;
-    if (recorder != null) await recorder.stop();
-    await _audioSubscription?.cancel();
-    _audioSubscription = null;
-    _audioDone = null;
-    _clearRecording();
+    try {
+      await recorder?.stop();
+    } finally {
+      await _closePreview();
+      final task = _activeTask;
+      task?.cancel();
+      try {
+        await task?.result;
+      } catch (_) {
+        /* Expected cancellation. */
+      }
+      try {
+        await _finishing;
+      } catch (_) {
+        /* Expected cancellation. */
+      }
+      await _audioSubscription?.cancel();
+      _audioSubscription = null;
+      _recorder = null;
+      _audioDone = null;
+      _clearRecording();
+    }
   }
 
   void _clearRecording() {
@@ -269,10 +398,13 @@ class LocalWhisperSpeechService {
   }
 
   Future<void> dispose() async {
+    _disposed = true;
     await cancelTranscription();
     _engine?.dispose();
     _engine = null;
     await _recognitionProgress.close();
+    await _liveUpdates.close();
+    await _recordingEnded.close();
     _models.close();
   }
 }

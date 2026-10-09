@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../data/local_whisper_speech_service.dart';
+import '../application/live_recognition.dart';
+import 'live_caption_card.dart';
 
 class SpeechHomeScreen extends StatefulWidget {
   const SpeechHomeScreen({super.key});
@@ -11,10 +13,18 @@ class SpeechHomeScreen extends StatefulWidget {
   State<SpeechHomeScreen> createState() => _SpeechHomeScreenState();
 }
 
-class _SpeechHomeScreenState extends State<SpeechHomeScreen> {
+class _SpeechHomeScreenState extends State<SpeechHomeScreen>
+    with WidgetsBindingObserver {
+  final GlobalKey _captionKey = GlobalKey();
   final TextEditingController _transcriptEditor = TextEditingController();
   final LocalWhisperSpeechService _speech = LocalWhisperSpeechService();
   StreamSubscription<int>? _recognitionProgressUpdates;
+  StreamSubscription<LiveRecognitionSnapshot>? _liveSubscription;
+  StreamSubscription<void>? _recordingEnded;
+  LiveRecognitionSnapshot _live = const LiveRecognitionSnapshot();
+  bool _liveEnabled = true;
+  bool _cancelling = false;
+  int _requestId = 0;
   Timer? _recordingTicker;
   Stopwatch? _recordingStopwatch;
 
@@ -41,11 +51,20 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen> {
       _installingModel ||
       _loadingModel ||
       _recording ||
-      _finishing;
+      _finishing ||
+      _cancelling;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _liveSubscription = _speech.liveUpdates.listen((snapshot) {
+      if (!mounted || !_recording || _cancelling) return;
+      setState(() => _live = snapshot);
+    });
+    _recordingEnded = _speech.recordingEnded.listen((_) {
+      if (mounted && _recording && !_cancelling) unawaited(_stopRecording());
+    });
     _recognitionProgressUpdates = _speech.recognitionProgress.listen((
       progress,
     ) {
@@ -120,6 +139,8 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen> {
 
   Future<void> _startRecording() async {
     if (!_modelInstalled || _busy) return;
+    final requestId = ++_requestId;
+    _live = const LiveRecognitionSnapshot();
     _stopRecordingClock(reset: true);
     setState(() {
       _loadingModel = true;
@@ -134,9 +155,10 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen> {
       await _speech.startRecording(
         language: _inputLanguage,
         preferAccuracy: _preferAccuracy,
+        livePreview: _liveEnabled,
       );
       _resultModelLabel = _fastModelInstalled ? 'Whisper tiny' : 'Whisper base';
-      if (!mounted) {
+      if (!mounted || requestId != _requestId) {
         await _speech.cancelTranscription();
         return;
       }
@@ -145,10 +167,24 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen> {
         _recording = true;
       });
       _startRecordingClock();
+      if (_liveEnabled) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final captionContext = _captionKey.currentContext;
+          if (mounted && _recording && captionContext != null) {
+            unawaited(
+              Scrollable.ensureVisible(
+                captionContext,
+                alignment: 0.3,
+                duration: const Duration(milliseconds: 180),
+              ),
+            );
+          }
+        });
+      }
     } catch (error) {
       _stopRecordingClock(reset: true);
       await _speech.cancelTranscription();
-      if (!mounted) return;
+      if (!mounted || requestId != _requestId) return;
       setState(() {
         _loadingModel = false;
         _recording = false;
@@ -158,7 +194,7 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen> {
   }
 
   Future<void> _stopRecording() async {
-    if (!_recording || _finishing) return;
+    if (!_recording || _finishing || _cancelling) return;
     _stopRecordingClock();
     setState(() {
       _recording = false;
@@ -166,11 +202,12 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen> {
       _error = null;
       _recognitionProgress = 0;
     });
+    final requestId = _requestId;
     final recognitionClock = Stopwatch()..start();
     try {
       final result = await _speech.stopRecordingAndTranscribe();
       recognitionClock.stop();
-      if (!mounted) return;
+      if (!mounted || requestId != _requestId) return;
       setState(() {
         _rawTranscript = result.text;
         _transcript = result.text.trim();
@@ -183,7 +220,7 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen> {
       });
     } catch (error) {
       recognitionClock.stop();
-      if (!mounted) return;
+      if (!mounted || requestId != _requestId) return;
       setState(() {
         _finishing = false;
         _recognitionDuration = recognitionClock.elapsed;
@@ -194,20 +231,33 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen> {
   }
 
   Future<void> _cancelRecording() async {
-    if (!_recording && !_loadingModel && !_finishing) return;
+    if (_cancelling || (!_recording && !_loadingModel && !_finishing)) return;
+    ++_requestId;
     _stopRecordingClock(reset: true);
-    await _speech.cancelTranscription();
-    if (!mounted) return;
-    setState(() {
-      _recording = false;
-      _loadingModel = false;
-      _finishing = false;
-      _transcript = '';
-      _error = null;
-      _recordingDuration = Duration.zero;
-      _recognitionDuration = null;
-      _recognitionProgress = null;
-    });
+    setState(() => _cancelling = true);
+    Object? cancellationError;
+    try {
+      await _speech.cancelTranscription();
+    } catch (error) {
+      cancellationError = error;
+    } finally {
+      if (mounted) {
+        setState(() {
+          _cancelling = false;
+          _recording = false;
+          _loadingModel = false;
+          _finishing = false;
+          _transcript = '';
+          _error = cancellationError == null
+              ? null
+              : _friendlyError(cancellationError);
+          _live = const LiveRecognitionSnapshot();
+          _recordingDuration = Duration.zero;
+          _recognitionDuration = null;
+          _recognitionProgress = null;
+        });
+      }
+    }
   }
 
   void _startRecordingClock() {
@@ -287,7 +337,18 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused && (_recording || _finishing)) {
+      unawaited(_cancelRecording());
+    }
+  }
+
+  @override
   void dispose() {
+    ++_requestId;
+    WidgetsBinding.instance.removeObserver(this);
+    _liveSubscription?.cancel();
+    _recordingEnded?.cancel();
     _transcriptEditor.dispose();
     _recordingTicker?.cancel();
     _recordingStopwatch?.stop();
@@ -338,15 +399,25 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen> {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'Regional Philippine languages are not yet validated. '
-                    'Auto-detect only chooses among languages supported by the speech model.',
+                    'Cebuano / Bisaya recognition needs a separate validated model. '
+                    'Auto-detect does not add support for every Philippine language.',
                     style: TextStyle(fontSize: 12, color: Color(0xFF71807A)),
                   ),
                   const SizedBox(height: 18),
                   SwitchListTile(
-                    title: const Text('Try a larger speech model'),
+                    title: const Text('Live captions'),
                     subtitle: const Text(
-                      'Whisper Base · accuracy candidate · slower than Tiny',
+                      'Words appear as recognition completes. Uses more battery.',
+                    ),
+                    value: _liveEnabled,
+                    onChanged: _busy
+                        ? null
+                        : (value) => setState(() => _liveEnabled = value),
+                  ),
+                  SwitchListTile(
+                    title: const Text('Refine with Whisper Base'),
+                    subtitle: const Text(
+                      'Fast model for live text; larger model reviews after Finish. Requires both downloads for fastest previews.',
                     ),
                     value: _preferAccuracy,
                     onChanged: _busy
@@ -369,7 +440,10 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen> {
                   ],
                   if (_recording || _transcript.isNotEmpty || _finishing) ...[
                     const SizedBox(height: 18),
-                    _buildTranscriptCard(colors),
+                    KeyedSubtree(
+                      key: _captionKey,
+                      child: _buildTranscriptCard(colors),
+                    ),
                   ],
                   const SizedBox(height: 14),
                   _buildTranslationPlaceholder(colors),
@@ -640,7 +714,7 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen> {
               alignment: Alignment.centerLeft,
               child: Text(
                 recording
-                    ? 'Speak naturally. Tap stop when you are done.'
+                    ? 'Speak naturally. Tap Finish when done · up to 5 minutes.'
                     : _finishing
                     ? 'Finishing the local transcription…'
                     : _loadingModel
@@ -668,7 +742,15 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen> {
               ),
               const SizedBox(height: 16),
             ],
-            if (_loadingModel)
+            if (_cancelling)
+              const Padding(
+                padding: EdgeInsets.all(12),
+                child: Text(
+                  'Cancelling…',
+                  style: TextStyle(color: Colors.white),
+                ),
+              )
+            else if (_loadingModel)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 8),
                 child: CircularProgressIndicator(color: Color(0xFF9FE2CC)),
@@ -832,7 +914,9 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen> {
               ],
             ),
             const SizedBox(height: 4),
-            if (_transcript.isEmpty && _finishing)
+            if ((_recording || _finishing) && _liveEnabled)
+              LiveCaptionCard(snapshot: _live, finalizing: _finishing)
+            else if (_transcript.isEmpty && _finishing)
               const Text(
                 'Recognizing speech…',
                 style: TextStyle(color: Color(0xFF71807A), fontSize: 15),

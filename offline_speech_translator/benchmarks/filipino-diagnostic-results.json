@@ -1,0 +1,44 @@
+{
+  "scope": "Two public FLEURS fil_ph clips. Not a representative accuracy benchmark.",
+  "source": "https://huggingface.co/datasets/google/fleurs",
+  "license": "CC-BY-4.0",
+  "device": "Samsung SM-A165F",
+  "recordings": [
+    {
+      "file": "10016150700374001635.wav",
+      "duration_s": 24.42,
+      "tiny": {
+        "word_errors": 28,
+        "reference_words": 32,
+        "wer": 0.875,
+        "cer": 0.2484472049689441
+      },
+      "base": {
+        "word_errors": 15,
+        "reference_words": 32,
+        "wer": 0.46875,
+        "cer": 0.14285714285714285
+      }
+    },
+    {
+      "file": "10030073068120699612.wav",
+      "duration_s": 12.3,
+      "tiny": {
+        "word_errors": 7,
+        "reference_words": 18,
+        "wer": 0.3888888888888889,
+        "cer": 0.07446808510638298
+      },
+      "base": {
+        "word_errors": 5,
+        "reference_words": 18,
+        "wer": 0.2777777777777778,
+        "cer": 0.05319148936170213
+      }
+    }
+  ],
+  "aggregate_wer": {
+    "tiny": 0.7,
+    "base": 0.4
+  }
+}
