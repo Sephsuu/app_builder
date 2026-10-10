@@ -41,12 +41,12 @@ void main() {
     expect(find.byTooltip('Back to landing page'), findsOneWidget);
     expect(find.byType(SvgPicture), findsNothing);
 
-    await tester.tap(find.byTooltip('Speech and offline settings'));
+    await tester.tap(find.byTooltip('Speech and translation settings'));
     await tester.pumpAndSettle();
-    expect(find.text('Speech & offline setup'), findsOneWidget);
+    expect(find.text('Speech & translation setup'), findsOneWidget);
     await tester.tap(find.byTooltip('Back to translator'));
     await tester.pumpAndSettle();
-    expect(find.text('Speech & offline setup'), findsNothing);
+    expect(find.text('Speech & translation setup'), findsNothing);
     expect(find.byTooltip('Back to landing page'), findsOneWidget);
 
     await tester.tap(find.byTooltip('Back to landing page'));

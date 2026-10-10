@@ -154,7 +154,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           ),
                           const SizedBox(height: 16),
                           const Text(
-                            'Swap languages to switch speakers. The translator will turn finalized speech into the other language on your device.',
+                            'Swap languages to switch speakers. The translator will turn finalized speech into the other language.',
                             style: TextStyle(height: 1.6),
                           ),
                           const SizedBox(height: 32),
@@ -203,7 +203,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           ),
                           const SizedBox(height: 12),
                           const Text(
-                            'Speech and translation models need a one-time setup. After installation, processing stays on your device.',
+                            'Speech and translation models need a one-time setup. After installation, offline processing stays on your device. Optional OpenAI translation sends text to OpenAI when connected.',
                             style: TextStyle(
                               fontSize: 13,
                               height: 1.5,

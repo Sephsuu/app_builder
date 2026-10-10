@@ -127,7 +127,7 @@ void main() {
         expect(find.text('Stop'), findsOneWidget);
         await tester.tap(find.text('Cancel'));
         await tester.pumpAndSettle();
-        await tester.tap(find.byTooltip('Speech and offline settings'));
+        await tester.tap(find.byTooltip('Speech and translation settings'));
         await tester.pumpAndSettle();
         await screenshot('settings');
         await reveal(tester, find.text('Refine with Whisper Base'));

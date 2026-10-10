@@ -11,6 +11,7 @@ class MainActivity : FlutterActivity() {
     private var voice: OfflineVoice? = null
     private var cebuano: CebuanoModelImport? = null
     private var noise: NoiseCapture? = null
+    private var onlineSettings: OnlineTranslationSettings? = null
     private var activityState: MethodChannel? = null
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -24,6 +25,7 @@ class MainActivity : FlutterActivity() {
                 } else result.notImplemented()
             }
         }
+        onlineSettings = OnlineTranslationSettings(applicationContext, messenger)
         translation = OfflineTranslation(applicationContext, messenger)
         voice = OfflineVoice(applicationContext, messenger)
         cebuano = CebuanoModelImport(this, messenger)
@@ -37,6 +39,7 @@ class MainActivity : FlutterActivity() {
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         activityState?.setMethodCallHandler(null)
         activityState = null
+        onlineSettings?.close()
         cebuano?.close()
         noise?.close()
         voice?.close()

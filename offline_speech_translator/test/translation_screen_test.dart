@@ -242,7 +242,7 @@ void main() {
     tester,
   ) async {
     await open(tester);
-    await tester.tap(find.byTooltip('Speech and offline settings'));
+    await tester.tap(find.byTooltip('Speech and translation settings'));
     await tester.pumpAndSettle();
     final review = find.widgetWithText(
       SwitchListTile,
@@ -431,7 +431,7 @@ void main() {
     (tester) async {
       speech.baseInstalled = true;
       await open(tester);
-      await tester.tap(find.byTooltip('Speech and offline settings'));
+      await tester.tap(find.byTooltip('Speech and translation settings'));
       await tester.pumpAndSettle();
       final choice = find.widgetWithText(
         SwitchListTile,

@@ -13,6 +13,10 @@ import '../../../theme/salin_theme.dart';
 import '../../translation/application/translation_controller.dart';
 import '../../translation/data/local_translation_service.dart';
 import '../../translation/domain/translation.dart';
+import '../../translation/data/hybrid_translation_service.dart';
+import '../../translation/data/openai_translation_service.dart';
+import '../../translation/data/online_translation_settings.dart';
+import '../../translation/presentation/online_translation_card.dart';
 
 class SpeechHomeScreen extends StatefulWidget {
   const SpeechHomeScreen({super.key, this.speech, this.translator, this.voice});
@@ -52,6 +56,21 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
   late final LocalWhisperSpeechService _speech;
   late final TranslationController _translation;
   LocalTranslationService? _localTranslation;
+  HybridTranslationService? _hybridTranslation;
+  final _onlineSettings = OnlineTranslationSettings();
+  bool _onlineConfigured = false;
+  bool get _canTranslate => _translationInstalled || _onlineConfigured;
+
+  Future<void> _refreshOnlineSettings() async {
+    bool configured = false;
+    try {
+      configured = await _onlineSettings.configured();
+    } catch (_) {
+      /* Offline remains available. */
+    }
+    if (mounted) setState(() => _onlineConfigured = configured);
+  }
+
   StreamSubscription<double>? _translationDownload;
   bool _translationInstalled = false;
   bool _checkingTranslation = true;
@@ -123,8 +142,21 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
   void initState() {
     super.initState();
     _speech = widget.speech ?? LocalWhisperSpeechService();
-    final translator = widget.translator ?? LocalTranslationService();
-    if (translator is LocalTranslationService) _localTranslation = translator;
+    TranslationService translator;
+    if (widget.translator != null) {
+      translator = widget.translator!;
+      if (translator is LocalTranslationService) _localTranslation = translator;
+    } else {
+      _localTranslation = LocalTranslationService();
+      _hybridTranslation = HybridTranslationService(
+        offline: _localTranslation!,
+        online: OpenAITranslationService(readKey: _onlineSettings.readKey),
+        isOnline: _onlineSettings.isOnline,
+        configured: _onlineSettings.configured,
+      );
+      translator = _hybridTranslation!;
+      unawaited(_refreshOnlineSettings());
+    }
     _translation = TranslationController(
       translator: translator,
       voice: widget.voice ?? DeviceSpeechOutput(),
@@ -495,7 +527,7 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
             translateAutomatically:
                 !_reviewBeforeTranslation &&
                 !_correctionPending &&
-                _translationInstalled,
+                _canTranslate,
             separateLines: _translateLinesSeparately,
           ),
         );
@@ -671,7 +703,7 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
       _correctionPending = false;
     });
     _translation.edit(_transcript);
-    if (!_reviewBeforeTranslation && _translationInstalled) await _translate();
+    if (!_reviewBeforeTranslation && _canTranslate) await _translate();
   }
 
   void _restoreRecognizedText() {
@@ -707,6 +739,7 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
     ++_requestId;
     _translation.removeListener(_translationChanged);
     _translation.dispose();
+    _hybridTranslation?.status.dispose();
     _translationDownload?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _liveSubscription?.cancel();
@@ -762,7 +795,7 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                _showSettings ? 'Speech & offline setup' : 'Salin',
+                _showSettings ? 'Speech & translation setup' : 'Salin',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               if (!_showSettings)
@@ -776,7 +809,7 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
             IconButton(
               tooltip: _showSettings
                   ? 'Close settings'
-                  : 'Speech and offline settings',
+                  : 'Speech and translation settings',
               onPressed: () => setState(() => _showSettings = !_showSettings),
               icon: Icon(_showSettings ? Icons.close : Icons.tune_rounded),
             ),
@@ -981,6 +1014,20 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
                                   ],
                                 ),
                                 const SizedBox(height: 12),
+                                if (_hybridTranslation != null &&
+                                    !_translation.restoredDraft &&
+                                    (_translation.translating ||
+                                        _translation.translated.isNotEmpty))
+                                  ValueListenableBuilder<String>(
+                                    valueListenable: _hybridTranslation!.status,
+                                    builder: (context, status, _) => Text(
+                                      status,
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: SalinTheme.muted,
+                                      ),
+                                    ),
+                                  ),
                                 if (_translation.restoredDraft)
                                   const Text(
                                     'Saved for this direction. Translate again to request a new result.',
@@ -1008,7 +1055,7 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
                                       onPressed:
                                           _busy ||
                                               _translation.translating ||
-                                              !_translationInstalled
+                                              !_canTranslate
                                           ? null
                                           : _translate,
                                       icon: const Icon(Icons.translate_rounded),
@@ -1277,6 +1324,17 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
       key: const PageStorageKey('settings'),
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
       children: [
+        if (_hybridTranslation != null) ...[
+          OnlineTranslationCard(
+            settings: _onlineSettings,
+            configured: _onlineConfigured,
+            enabled: !_busy && !_translation.translating,
+            onChanged: () {
+              unawaited(_refreshOnlineSettings());
+            },
+          ),
+          const SizedBox(height: 20),
+        ],
         if (_tagalogSource)
           DropdownButtonFormField<String>(
             isExpanded: true,
@@ -1587,7 +1645,7 @@ class _SpeechHomeScreenState extends State<SpeechHomeScreen>
         const SizedBox(width: 8),
         const Expanded(
           child: Text(
-            'Speech recognition and translation run on this device after model setup. Audio and text are not sent to a server.',
+            'Speech recognition runs on this device. With an OpenAI key configured and internet available, finalized or edited text is sent to OpenAI for translation. Otherwise translation uses the installed local model. Audio is never sent to OpenAI.',
             style: TextStyle(
               color: Color(0xFF626262),
               fontSize: 12,

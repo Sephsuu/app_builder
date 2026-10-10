@@ -2,7 +2,9 @@
 
 Android-first Flutter research/demo application. Tagalog speech is recognized
 with the existing Whisper Tiny/Base implementation. NLLB translates finalized or
-edited text **in both directions**, entirely on-device after installation.
+edited text **in both directions** on-device after installation. Optional OpenAI
+translation uses your own API key when internet is available, with automatic
+fallback to NLLB when disconnected or an API request fails.
 Playback uses an installed offline voice for the exact target language.
 
 **Current limits:** an optional, separately trained Cebuano Small checkpoint now
@@ -31,7 +33,7 @@ flutter run -d <ANDROID_DEVICE_ID>
 1. The branded landing page appears on launch. Tap **Start** to open the
    conversation translator. Tap the back arrow in its top bar to return to the
    landing page.
-2. Open **Speech and offline settings** (the sliders icon). Install the speech
+2. Open **Speech and translation settings** (the sliders icon). Install the speech
    model (~32 MB Tiny; ~63 MB Base) and translation model (~900 MB). Downloads
    remain explicit, resumable and checksum-verified. Installed Base is selected
    for final Tagalog recognition by default; Tiny remains available. For Cebuano
@@ -60,8 +62,12 @@ flutter run -d <ANDROID_DEVICE_ID>
    language. Completed turns stay in scrollable history for the current session,
    with their own playback and copy controls. **Translate Again** immediately
    starts another recording on this screen.
-7. After setup, repeat with airplane mode enabled on your actual phone. No
-   inference API or server is used. Models and voices still require installation.
+7. For online translation, open **Speech and translation settings → OpenAI
+   translation**, enter your own API key and tap **Save key**. Finalized or edited
+   text is sent to OpenAI; speech recognition and audio remain on-device. API usage
+   is billed to that key's account. **Remove key** restores offline-only behavior.
+8. After model setup, repeat with airplane mode enabled on your phone to check
+   offline fallback. Offline models and voices still require installation.
 
 ## Compatibility and dependencies
 
@@ -202,3 +208,31 @@ mode. Emulator inference cannot establish microphone enhancement quality.
 - [Android NoiseSuppressor](https://developer.android.com/reference/android/media/audiofx/NoiseSuppressor)
 - [Android offline voice capabilities](https://developer.android.com/reference/android/speech/tts/Voice)
 - [Google FLEURS, CC-BY-4.0](https://huggingface.co/datasets/google/fleurs)
+
+## Optional OpenAI translation
+
+The [Responses API](https://developers.openai.com/api/docs/guides/text) uses
+[`gpt-4.1-mini-2025-04-14`](https://developers.openai.com/api/docs/models/gpt-4.1-mini)
+with translation-only instructions for Tagalog ↔ Cebuano, temperature 0 and
+`store: false`. Only the current finalized/edited input is sent (no audio,
+conversation history, or provisional captions). Requests have a 20-second total
+limit, a 5-second connection limit, and no automatic retries. Android checks for a
+validated internet connection before trying OpenAI. Network loss, authentication,
+quota, server errors, incomplete responses and timeouts fall back to NLLB. The
+screen reports the route used; fallback requires the offline model installed.
+Starting a new turn cancels the HTTP request and prevents stale results or fallback
+work from the old turn. Separately translated lines may use different services if
+connectivity changes; the status shows the most recent line's service.
+
+Keys are entered on the device, encrypted with Android Keystore AES-GCM, and stored
+in the app's no-backup directory. No key is shipped in source or the APK. This is a
+personal bring-your-own-key mode; a distributed app using a shared developer key
+should call an authenticated backend holding that key. Replace any key previously
+shared in a chat or committed to source. `store: false` is not a promise of zero
+provider retention.
+
+Validation: mocked API tests cover request direction and payload, successful output,
+HTTP/auth/quota failures, timeouts, cancellation, parsing refusal/incomplete responses,
+and offline selection/fallback. Widget tests cover obscured key entry, save/clear
+and removal. Live OpenAI translation quality, billing and authentication have not
+been tested with a real key; no supplied chat credential was stored or used.
